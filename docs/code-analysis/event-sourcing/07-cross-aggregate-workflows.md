@@ -232,6 +232,339 @@ flowchart TD
     I --> J[Repeat Analysis]
 ```
 
+## Comprehensive Specialized Program Workflows
+
+### Pathology Program - Complete Workflow Documentation
+
+Based on User Manual: **Case registration → Clinical history → Gross examination → Microscopic examination → Final diagnosis → Reporting**
+
+```mermaid
+flowchart TD
+    A[Patient Registration] --> B[Pathology Case Creation]
+    B --> C[Clinical History Documentation]
+    C --> D[Specimen Collection]
+    D --> E[Gross Description]
+    E --> F[Photography Documentation]
+    F --> G[Tissue Processing]
+    G --> H[Microtomy & Staining]
+    H --> I[Microscopic Examination]
+    I --> J[Diagnosis Formulation]
+    J --> K[Report Generation]
+    K --> L[Pathologist Review]
+    L --> M[Final Report]
+    M --> N[Result Delivery]
+    
+    %% Error Handling Branches
+    E --> E1{Inadequate Specimen?}
+    E1 -->|Yes| E2[Request Additional Tissue]
+    E2 --> D
+    
+    I --> I1{Additional Sections Needed?}
+    I1 -->|Yes| I2[Order Additional Sections]
+    I2 --> G
+    
+    J --> J1{Immunohistochemistry Required?}
+    J1 -->|Yes| J2[IHC Workflow Branch]
+    J2 --> J3[IHC Results Integration]
+    J3 --> J
+    
+    L --> L1{Report Amendments Needed?}
+    L1 -->|Yes| L2[Amend Report]
+    L2 --> M
+```
+
+#### Pathology Cross-Aggregate Event Flow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Patient as Patient Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    participant Report as Reporting
+    
+    %% Case Creation Phase
+    Order->>Order: ManualOrderCreated
+    Order->>Patient: OrderPatientSelected
+    Order->>Order: OrderProgramSelected (Pathology)
+    Order->>Order: ClinicalHistoryEntered
+    Order->>Order: OrderSamplesAssigned
+    Order->>Order: ManualOrderFinalized
+    
+    %% Sample Registration Phase  
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToPathology
+    Sample->>Sample: PathologyCaseLinked
+    Sample->>Sample: SampleCollected
+    Sample->>Sample: SampleTestingStarted
+    
+    %% Pathology Analysis Phase
+    Sample->>Analysis: PathologyAnalysisCreated
+    Analysis->>Analysis: PerformGrossExamination
+    Analysis->>Analysis: GrossPhotographyTaken
+    Analysis->>Analysis: TissueProcessingInitiated
+    Analysis->>Analysis: HistologicalSectioning
+    Analysis->>Analysis: RoutineStainingPerformed
+    Analysis->>Analysis: PerformMicroscopicExam
+    
+    %% Diagnosis Phase
+    Analysis->>Analysis: MicroscopicFindingsDocumented
+    Analysis->>Analysis: EnterPathologyDiagnosis
+    Analysis->>Analysis: MorphologyCodeAssigned
+    Analysis->>Analysis: PrognosticFactorsNoted
+    
+    %% Optional IHC Branch
+    alt IHC Required
+        Analysis->>Analysis: IHCTestsOrdered
+        Analysis->>Analysis: IHCStainingPerformed
+        Analysis->>Analysis: IHCResultsEvaluated
+        Analysis->>Analysis: IHCResultsIntegrated
+    end
+    
+    %% Validation Phase
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: PathologistApproval
+    Analysis->>Analysis: AnalysisFinalized
+    
+    %% Reporting Phase
+    Analysis->>Report: PathologyReportGenerated
+    Report->>Report: ReportFormattingApplied
+    Report->>Report: DiagnosticImagesAttached
+    Report->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+    
+    %% Quality Assurance Integration
+    alt Quality Issues
+        Analysis->>QA: QAEventCreated (Pathology-specific)
+        QA->>QA: PathologyQAInvestigation
+        QA->>Analysis: AdditionalSectionsRequired
+        Analysis->>Analysis: AdditionalWorkPerformed
+        QA->>QA: QAEventClosed
+    end
+```
+
+### Immunohistochemistry (IHC) Program - Complete Workflow Documentation
+
+Based on User Manual: **Program selection → Specimen details → Test execution → Result capture → Validation → Reporting**
+
+```mermaid
+flowchart TD
+    A[IHC Order Creation] --> B[Specimen Adequacy Check]
+    B --> C[Block Selection]
+    C --> D[Section Cutting]
+    D --> E[Deparaffinization]
+    E --> F[Antigen Retrieval]
+    F --> G[Primary Antibody Incubation]
+    G --> H[Secondary Antibody Application]
+    H --> I[Chromogen Development]
+    I --> J[Counterstaining]
+    J --> K[Slide Mounting]
+    K --> L[Quality Control Review]
+    L --> M[Microscopic Evaluation]
+    M --> N[Scoring & Interpretation]
+    N --> O[Result Documentation]
+    O --> P[Pathologist Review]
+    P --> Q[Final Report]
+    
+    %% Quality Control Branches
+    L --> L1{QC Passed?}
+    L1 -->|No| L2[Repeat Staining]
+    L2 --> F
+    
+    %% Inadequate Staining
+    M --> M1{Adequate Staining?}
+    M1 -->|No| M2[Troubleshoot Protocol]
+    M2 --> F
+    
+    %% Additional Testing
+    N --> N1{Additional Markers Needed?}
+    N1 -->|Yes| N2[Order Additional IHC]
+    N2 --> C
+```
+
+#### IHC Cross-Aggregate Event Flow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    participant Equipment as Equipment Management
+    
+    %% Order Phase
+    Order->>Order: OrderProgramSelected (IHC)
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToIHC
+    Sample->>Sample: SpecimenAdequacyChecked
+    Sample->>Sample: SampleTestingStarted
+    
+    %% Pre-analytical Phase
+    Sample->>Analysis: IHCAnalysisCreated
+    Analysis->>Analysis: IHCProtocolSelected
+    Analysis->>Analysis: AntibodyPanelDefined
+    Analysis->>Analysis: BlockSelectionPerformed
+    
+    %% Staining Phase
+    Analysis->>Analysis: SectionCuttingPerformed
+    Analysis->>Equipment: AutostainerReserved
+    Analysis->>Analysis: PerformIHCStaining
+    Analysis->>Analysis: QualityControlIncluded
+    
+    %% Quality Control Phase
+    alt QC Passed
+        Analysis->>Analysis: StainingQualityApproved
+    else QC Failed
+        Analysis->>QA: QAEventCreated (IHC Staining)
+        QA->>QA: TroubleshootingInitiated
+        Analysis->>Analysis: RestainRequired
+        Analysis->>Analysis: PerformIHCStaining (Repeat)
+    end
+    
+    %% Interpretation Phase
+    Analysis->>Analysis: MicroscopicEvaluationPerformed
+    Analysis->>Analysis: InterpretIHCResults
+    Analysis->>Analysis: ScoringPerformed
+    Analysis->>Analysis: IntensityScoreAssigned
+    Analysis->>Analysis: PercentagePositiveCalculated
+    
+    %% Additional Testing Decision
+    alt Additional Markers Needed
+        Analysis->>Analysis: AdditionalIHCOrdered
+        Analysis->>Analysis: PerformIHCStaining (Additional)
+        Analysis->>Analysis: InterpretIHCResults (Additional)
+    end
+    
+    %% Finalization Phase
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: PathologistApproval
+    Analysis->>Analysis: AnalysisFinalized
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+```
+
+### Cytology Program - Complete Workflow Documentation
+
+Based on User Manual: **Specimen collection → Slide preparation → Screening → Classification → Quality assurance → Reporting**
+
+```mermaid
+flowchart TD
+    A[Cytology Specimen Collection] --> B[Specimen Transport]
+    B --> C[Specimen Processing]
+    C --> D[Slide Preparation]
+    D --> E[Staining Process]
+    E --> F[Quality Assessment]
+    F --> G[Primary Screening]
+    G --> H[Abnormality Detection]
+    H --> I{Screening Result}
+    I -->|Normal| J[Negative Result]
+    I -->|Abnormal| K[Abnormal Classification]
+    I -->|Inadequate| L[Unsatisfactory Result]
+    
+    J --> M[Cytotechnologist Review]
+    K --> N[Cytopathologist Review]
+    L --> O[Recollection Recommended]
+    
+    M --> P[Final Classification]
+    N --> Q[Bethesda System Application]
+    Q --> R[Clinical Correlation]
+    R --> S[Management Recommendations]
+    
+    P --> T[Quality Assurance Review]
+    S --> T
+    T --> U[Final Report]
+    U --> V[Result Release]
+    
+    %% Quality Assurance Branches
+    T --> T1{QA Passed?}
+    T1 -->|No| T2[Additional Review Required]
+    T2 --> W[Senior Cytopathologist Review]
+    W --> T
+    
+    %% Inadequate Specimen Handling
+    L --> L1[Document Inadequacy Reason]
+    L1 --> L2[Patient Notification]
+    L2 --> L3[Recollection Instructions]
+```
+
+#### Cytology Cross-Aggregate Event Flow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Patient as Patient Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    participant Provider as Provider Notification
+    
+    %% Collection Phase
+    Order->>Order: OrderProgramSelected (Cytology)
+    Order->>Patient: PatientHistoryReviewed
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToCytology
+    Sample->>Sample: CytologySpecimenCollected
+    Sample->>Sample: CollectionMethodDocumented
+    
+    %% Processing Phase
+    Sample->>Sample: SampleTestingStarted
+    Sample->>Analysis: CytologyAnalysisCreated
+    Analysis->>Analysis: SpecimenProcessingPerformed
+    Analysis->>Analysis: SlidePreparationCompleted
+    Analysis->>Analysis: CytologyStainingPerformed
+    
+    %% Quality Assessment Phase
+    Analysis->>Analysis: SpecimenAdequacyAssessed
+    alt Inadequate Specimen
+        Analysis->>Analysis: UnsatisfactoryResultAssigned
+        Analysis->>Patient: RecollectionRecommended
+        Analysis->>Provider: InadequacyNotification
+    else Adequate Specimen
+        Analysis->>Analysis: ScreeningEligibilityConfirmed
+    end
+    
+    %% Screening Phase
+    Analysis->>Analysis: PerformCytologyScreening
+    Analysis->>Analysis: CellularFindingsDocumented
+    Analysis->>Analysis: AbnormalityDetectionPerformed
+    
+    %% Classification Phase
+    alt Normal Result
+        Analysis->>Analysis: NegativeResultAssigned
+        Analysis->>Analysis: CytotechnologistReview
+    else Abnormal Result
+        Analysis->>Analysis: AbnormalClassificationAssigned
+        Analysis->>Analysis: CytopathologistReview
+        Analysis->>Analysis: BethesdaCategoryApplied
+        Analysis->>Analysis: ClinicalCorrelationPerformed
+        Analysis->>Analysis: ManagementRecommendationsProvided
+    end
+    
+    %% Quality Assurance Phase
+    Analysis->>QA: CytologyQualityReview
+    alt QA Issues Identified
+        QA->>QA: AdditionalReviewRequired
+        QA->>Analysis: SeniorCytopathologistConsultation
+        Analysis->>Analysis: ConsultationResultsIntegrated
+    end
+    QA->>QA: QualityAssurancePassed
+    
+    %% Finalization Phase
+    Analysis->>Analysis: AssignCytologyClassification
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: FinalApproval
+    Analysis->>Analysis: AnalysisFinalized
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+    
+    %% Special Handling for Abnormal Results
+    alt Abnormal Results
+        Sample->>Provider: AbnormalCytologyAlert
+        Provider->>Provider: ClinicalFollowupInitiated
+    end
+```
+
 ### 5. Enhanced Laboratory Testing Workflow with Error Handling
 
 ```mermaid
