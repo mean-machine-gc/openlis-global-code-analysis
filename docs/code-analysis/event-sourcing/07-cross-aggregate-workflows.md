@@ -6,78 +6,170 @@ This document outlines the complex cross-aggregate workflows in OpenELIS-Global-
 
 ## Primary Laboratory Workflows
 
-### 1. Standard Laboratory Testing Workflow
+### 1. Specialized Laboratory Program Workflows
 
 ```mermaid
 flowchart TD
-    A[Electronic Order Received] --> B{Order Valid?}
-    B -->|No| C[Order Rejected]
-    B -->|Yes| D[Patient Verification]
-    D --> E{Patient Exists?}
-    E -->|No| F[Patient Registration]
-    E -->|Yes| G[Sample Creation]
-    F --> G
-    G --> H[Sample Collection]
-    H --> I{Sample Acceptable?}
-    I -->|No| J[Sample Rejection - QA Event]
-    I -->|Yes| K[Analysis Creation]
-    K --> L[Result Entry]
-    L --> M{Results Valid?}
-    M -->|No| N[Technical Rejection - QA Event]
-    M -->|Yes| O[Biologist Review]
-    O --> P{Approved?}
-    P -->|No| Q[Biologist Rejection - QA Event]
-    P -->|Yes| R[Results Finalized]
-    R --> S[Report Generation]
-    S --> T[Result Transmission]
+    A[OrderReceived] --> B{Program Selection}
+    B -->|General Lab| C[GeneralLabWorkflow]
+    B -->|Pathology| D[PathologyWorkflow] 
+    B -->|Immunohistochemistry| E[IHCWorkflow]
+    B -->|Cytology| F[CytologyWorkflow]
     
-    C --> U[End]
-    J --> V[QA Investigation]
-    N --> V
-    Q --> V
-    V --> W[Corrective Action]
-    W --> X{Retry?}
-    X -->|Yes| K
-    X -->|No| U
-    T --> U
+    C --> C1[StandardSampleCollection]
+    D --> D1[PathologyCaseCreation]
+    E --> E1[IHCSpecimenProcessing]
+    F --> F1[CytologySpecimenCollection]
+    
+    D1 --> D2[GrossExamination]
+    D2 --> D3[HistologicalProcessing]
+    D3 --> D4[MicroscopicExamination]
+    D4 --> D5[PathologyReportGeneration]
+    D5 --> D6[PathologyResultsValidation]
+    
+    E1 --> E2[IHCStaining]
+    E2 --> E3[AntibodyIncubation]
+    E3 --> E4[IHCMicroscopy]
+    E4 --> E5[IHCInterpretation]
+    E5 --> E6[IHCReporting]
+    
+    F1 --> F2[CytologySlidePreparation]
+    F2 --> F3[CytologyScreening]
+    F3 --> F4[CytologyClassification]
+    F4 --> F5[QualityAssurance]
+    F5 --> F6[CytologyReporting]
+    
+    C1 --> STANDARD[StandardWorkflow]
+    D6 --> FINALIZE[FinalResultsIntegration]
+    E6 --> FINALIZE
+    F6 --> FINALIZE
+    STANDARD --> FINALIZE
+    FINALIZE --> END[WorkflowComplete]
 ```
 
-### 2. Referral Testing Workflow
+### 2. Enhanced Laboratory Testing Workflow with Error Handling
 
 ```mermaid
 flowchart TD
-    A[Analysis Created] --> B{Can Process Locally?}
+    A[OrderReceived/STATOrderReceived] --> B{Order Valid?}
+    B -->|No| C[OrderValidationFailed]
+    B -->|Yes| D[OrderValidated/STATOrderValidated]
+    D --> E{Patient Exists?}
+    E -->|No| F[OrderPatientCreated]
+    E -->|Yes| G[OrderConvertedToSample]
+    F --> G
+    G --> H[SampleRegistered/STATSampleAlert]
+    H --> I{Sample Acceptable?}
+    I -->|No| J[SampleRejected/ExternalSampleRejected]
+    I -->|Yes| K[SampleTestingStarted]
+    K --> L[AnalysisCreated/AnalysisPanelCreated]
+    L --> M[AnalysisStarted/AnalysisStartedOnAnalyzer]
+    M --> N[ResultsEntered/CriticalResultsEntered]
+    N --> O{Delta Check?}
+    O -->|Failed| P[DeltaCheckFailed]
+    O -->|Passed| Q[ResultsValidated/ResultsValidatedWithOverride]
+    P --> QA1[Delta Review]
+    QA1 --> Q
+    Q --> R{Critical Results?}
+    R -->|Yes| S[Provider Notification]
+    R -->|No| T[AnalysisFinalized]
+    S --> T
+    T --> U{All Analyses Complete?}
+    U -->|No| L
+    U -->|Yes| V[SampleCompleted/SampleCompletedWithCriticals]
+    V --> W[SampleResultsReleased/SampleResultsPrinted]
+    
+    C --> END[Workflow End]
+    J --> QA2[QAEventCreated/CriticalQAEventCreated]
+    QA2 --> QA3[InvestigatorAssigned]
+    QA3 --> QA4[Investigation/CAPA Process]
+    QA4 --> QA5{Corrective Action?}
+    QA5 -->|Yes| RETRY[Repeat Process]
+    QA5 -->|No| END
+    RETRY --> K
+    W --> END
+    
+    %% Amendment handling
+    V --> AME{Amendment Received?}
+    AME -->|Yes| AME1[OrderAmended]
+    AME1 --> AME2[OrderAmendmentProcessed]
+    AME2 --> V
+    AME -->|No| W
+    
+    %% Recall handling
+    W --> REC{Recall Needed?}
+    REC -->|Yes| REC1[SampleRecalled]
+    REC1 --> END
+    REC -->|No| END
+```
+
+### 2. Enhanced Referral Testing Workflow with Error Handling
+
+```mermaid
+flowchart TD
+    A[AnalysisCreated] --> B{Can Process Locally?}
     B -->|Yes| C[Standard Testing Workflow]
     B -->|No| D[Referral Required]
-    D --> E[External Lab Selection]
-    E --> F[Referral Documentation]
-    F --> G[FHIR Task Creation]
-    G --> H[Referral Transmission]
-    H --> I{Transmission Success?}
-    I -->|No| J[Communication Error - QA Event]
-    I -->|Yes| K[External Processing]
-    K --> L[Status Monitoring]
-    L --> M{Results Received?}
-    M -->|No| N{SLA Exceeded?}
-    N -->|Yes| O[Escalation - QA Event]
-    N -->|No| L
-    M -->|Yes| P[Result Validation]
-    P --> Q{Results Valid?}
-    Q -->|No| R[Result Rejection - QA Event]
-    Q -->|Yes| S[Local Integration]
-    S --> T[Analysis Finalized]
-    T --> U[Report Generation]
+    D --> E{Priority Level?}
+    E -->|STAT/Critical| F[UrgentReferralCreated]
+    E -->|Standard| G[ReferralCreated]
+    F --> H[Expedited Processing]
+    G --> I[Standard Processing]
+    H --> J[ReferralSent]
+    I --> J
+    J --> K{Transmission Success?}
+    K -->|No| L[ReferralTransmissionFailed]
+    K -->|Yes| M[Acknowledgment Wait]
+    L --> RETRY1[Retry Logic]
+    RETRY1 --> J
+    M --> N{Acknowledgment Type?}
+    N -->|Full| O[ReferralAcknowledged]
+    N -->|Partial| P[ReferralPartiallyAccepted]
+    N -->|Rejected| Q[ExternalReferralRejected]
+    P --> SPLIT[Additional Referrals]
+    Q --> ALT[Alternative Lab]
+    SPLIT --> G
+    ALT --> G
+    O --> R[External Processing]
+    R --> S[SLA Monitoring]
+    S --> T{Results Received?}
+    T -->|No| U{SLA Status?}
+    U -->|Warning| V[SLA Alert]
+    U -->|Breach| W[ReferralSLAEscalated]
+    U -->|Critical| X[ReferralFinalEscalation]
+    V --> S
+    W --> Y[Management Intervention]
+    X --> Z[Contract Breach Process]
+    Y --> S
+    T -->|Yes| AA{Result Type?}
+    AA -->|Normal| BB[ReferralResultsReceived]
+    AA -->|Critical| CC[ReferralCriticalResultsReceived]
+    BB --> DD[Result Validation]
+    CC --> EE[Immediate Provider Notification]
+    EE --> DD
+    DD --> FF{Results Valid?}
+    FF -->|No| GG[ReferralResultsQuestioned]
+    FF -->|Yes| HH[ReferralResultsApproved]
+    GG --> II[External Resolution]
+    II --> DD
+    HH --> JJ[AnalysisFinalized]
+    JJ --> KK[Billing Process]
+    KK --> LL{Charges Match?}
+    LL -->|Yes| MM[ReferralBillingReconciled]
+    LL -->|No| NN[ReferralBillingDisputed]
+    NN --> OO[Dispute Resolution]
+    OO --> LL
+    MM --> PP[Workflow Complete]
     
-    C --> U
-    J --> V[QA Investigation]
-    O --> V
-    R --> V
-    V --> W[Corrective Action]
-    W --> X{Retry?}
-    X -->|Yes| D
-    X -->|No| Y[Analysis Canceled]
-    U --> Z[End]
-    Y --> Z
+    C --> PP
+    Z --> QQ[QAEventCreated]
+    QQ --> RR[Investigation]
+    RR --> SS{Resolution?}
+    SS -->|Yes| G
+    SS -->|No| TT[AnalysisRejectedCascade]
+    PP --> END[End]
+    TT --> END
+```
 ```
 
 ### 3. Quality Assurance Workflow

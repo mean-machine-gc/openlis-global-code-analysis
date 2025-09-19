@@ -43,31 +43,47 @@ classDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Received : HL7 Message Received
-    Received --> Validating : Format Validation
-    Validating --> Valid : Validation Passed
-    Validating --> Invalid : Validation Failed
-    Valid --> Processing : Order Processing Started
-    Processing --> SampleCreated : Sample Generation Complete
-    SampleCreated --> Realized : Order Fully Processed
+    [*] --> DRAFT : Manual Order Creation
+    [*] --> RECEIVED : Electronic Order Received
     
-    Invalid --> Rejected : Send Rejection Response
-    Processing --> Failed : Processing Error
-    Failed --> Processing : Retry Processing
-    Failed --> Rejected : Max Retries Exceeded
+    DRAFT --> PATIENT_ASSIGNED : Patient Selected
+    PATIENT_ASSIGNED --> PROGRAM_ASSIGNED : Program Selected
+    PROGRAM_ASSIGNED --> SAMPLES_ASSIGNED : Tests/Samples Assigned
+    SAMPLES_ASSIGNED --> COMPLETED : Manual Order Finalized
     
-    Received --> Canceled : Order Cancellation Received
-    Valid --> Canceled : Pre-processing Cancel
-    Processing --> Canceled : Processing Interrupted
+    RECEIVED --> VALIDATING : Format Validation
+    VALIDATING --> VALIDATED : Standard Validation
+    VALIDATING --> VALIDATED_STAT : STAT Priority Detected
+    VALIDATING --> VALIDATION_FAILED : Validation Failed
+    VALIDATED --> CONVERTING : Standard Processing
+    VALIDATED_STAT --> CONVERTING : Expedited Processing
+    CONVERTING --> SAMPLE_CREATED : Sample Generated
+    CONVERTING --> PATIENT_CREATED : New Patient Created
+    PATIENT_CREATED --> SAMPLE_CREATED : Continue Processing
+    SAMPLE_CREATED --> COMPLETED : Order Fully Processed
+    COMPLETED --> MODIFIED : Order Modification
+    MODIFIED --> COMPLETED : Modification Complete
     
-    Realized --> [*]
-    Rejected --> [*]
-    Canceled --> [*]
+    VALIDATION_FAILED --> REJECTED : Send Rejection Response
+    CONVERTING --> PROCESSING_FAILED : Processing Error
+    PROCESSING_FAILED --> CONVERTING : Retry Processing
+    PROCESSING_FAILED --> REJECTED : Max Retries Exceeded
     
-    note right of Received : HL7 ORM/ORU Messages
-    note right of Valid : Patient/Test Validation
-    note right of SampleCreated : Sample Aggregate Created
-    note right of Realized : Analysis Workflows Started
+    DRAFT --> CANCELED : Manual Cancellation
+    RECEIVED --> CANCELED : Electronic Cancellation
+    VALIDATED --> CANCELED : Pre-processing Cancel
+    CONVERTING --> CANCELED : Processing Interrupted
+    COMPLETED --> CANCELED : Post-completion Cancel
+    
+    COMPLETED --> [*]
+    REJECTED --> [*]
+    CANCELED --> [*]
+    
+    note right of DRAFT : Manual Order Entry Workflow
+    note right of VALIDATED_STAT : Immediate Processing Queue
+    note right of PATIENT_CREATED : New Patient Workflow
+    note right of MODIFIED : Order Modification Handling
+    note right of COMPLETED : Analysis Workflows Started
 ```
 
 ## HL7 Message Processing Workflow
@@ -105,28 +121,57 @@ stateDiagram-v2
 
 ### Primary Order Events
 
-| Event | Trigger | State Transition | Audit Trail Location |
-|-------|---------|------------------|---------------------|
-| **OrderReceived** | HL7 message received | null → Received | `history.activity = 'I'` |
-| **OrderValidated** | Validation complete | Received → Valid | `history.activity = 'U'` |
-| **OrderRejected** | Validation failed | Received/Valid → Rejected | `history.activity = 'U'` |
-| **OrderProcessingStarted** | Processing initiated | Valid → Processing | `history.activity = 'U'` |
-| **OrderSampleCreated** | Sample generated | Processing → SampleCreated | `history.activity = 'U'` |
-| **OrderRealized** | Fully processed | SampleCreated → Realized | `history.activity = 'U'` |
-| **OrderCanceled** | Cancellation received | Any → Canceled | `history.activity = 'U'` |
-| **OrderProcessingFailed** | Processing error | Processing → Failed | `history.activity = 'U'` |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **ManualOrderCreated** | Manual order entry started | null → DRAFT | User-initiated order creation | **ORD-001**: As a lab technician I want to create manual orders |
+| **OrderPatientSelected** | Patient assigned to order | DRAFT → PATIENT_ASSIGNED | Patient search/registration complete | **ORD-002**: As a lab technician I want to assign patients to orders |
+| **OrderProgramSelected** | Program assigned | PATIENT_ASSIGNED → PROGRAM_ASSIGNED | Laboratory program selected (General/Pathology/etc.) | **ORD-003**: As a lab technician I want to select appropriate programs |
+| **OrderSamplesAssigned** | Sample collection defined | PROGRAM_ASSIGNED → SAMPLES_ASSIGNED | Collection details, tests selected | **ORD-004**: As a lab technician I want to assign tests and samples |
+| **ManualOrderFinalized** | Manual order complete | SAMPLES_ASSIGNED → COMPLETED | Laboratory number assigned, order submitted | **ORD-005**: As a lab technician I want to finalize manual orders |
+| **ElectronicOrderReceived** | FHIR/HL7 order | null → RECEIVED | Valid message format, security validation | **ORD-006**: As an external system I want to send laboratory orders |
+| **STATOrderReceived** | STAT priority order | null → RECEIVED | STAT priority detected, expedited processing | **ORD-006**: STAT priority branch with expedited processing |
+| **ElectronicOrderValidated** | Standard validation | RECEIVED → VALIDATED | Patient exists, tests available | **ORD-007**: As a lab system I want to validate incoming orders |
+| **STATOrderValidated** | STAT validation | RECEIVED → VALIDATED_STAT | STAT authorization, immediate processing | **ORD-007**: STAT validation branch with expedited workflow |
+| **OrderValidationFailed** | Validation errors | RECEIVED → VALIDATION_FAILED | Errors documented, rejection prepared | **ORD-007**: Validation failure branch with error response |
+| **OrderConvertedToSample** | Standard conversion | VALIDATED → SAMPLE_CREATED | Sample aggregate created successfully | **ORD-008**: As a lab system I want to convert orders to samples |
+| **OrderPatientCreated** | New patient needed | VALIDATED → PATIENT_CREATED | Patient not found, new patient created | **ORD-008**: New patient branch with registration workflow |
+| **OrderProcessingCompleted** | Processing finished | SAMPLE_CREATED → COMPLETED | All samples/analyses created | **ORD-008**: Order processing complete |
 
-### HL7 Integration Events
+### Legacy HL7 Integration Events (for reference)
 
-| Event | Description | HL7 Message Type |
-|-------|-------------|------------------|
-| **HL7MessageReceived** | Incoming HL7 message | ORM^O01, ORU^R01 |
-| **HL7MessageParsed** | Message structure validated | Any |
-| **HL7AcknowledgmentSent** | ACK message sent | ACK^O01 |
-| **HL7ErrorResponse** | NACK message sent | ACK^O01 with error |
-| **HL7ResultsSent** | Results transmitted | ORU^R01 |
+| Event | Description | HL7 Message Type | Status |
+|-------|-------------|------------------|--------|
+| **HL7MessageReceived** | Incoming HL7 message | ORM^O01, ORU^R01 | Enhanced above |
+| **HL7MessageParsed** | Message structure validated | Any | Enhanced above |
+| **HL7AcknowledgmentSent** | ACK message sent | ACK^O01 | Enhanced above |
+| **HL7ErrorResponse** | NACK message sent | ACK^O01 with error | Enhanced above |
+| **HL7ResultsSent** | Results transmitted | ORU^R01 | Enhanced above |
 
-### Priority Management Events
+### Priority and Amendment Management Events
+
+| Event | Description | Priority Impact | Amendment Impact |
+|-------|-------------|-----------------|------------------|
+| **OrderPriorityEscalated** | Priority upgrade | STAT processing activated | Workflow re-prioritized |
+| **STATOrderAlert** | STAT order notification | Lab alerts triggered | Immediate processing |
+| **OrderSTATAuthorized** | STAT authorization | Authorization documented | Premium processing |
+| **OrderAmendmentValidated** | Amendment validation | Priority may change | Change validation complete |
+| **OrderAmendmentApplied** | Amendment implementation | Processing updated | Changes implemented |
+| **OrderAmendmentRejected** | Amendment rejection | No change | Rejection documented |
+| **OrderChangeNotification** | Change notification | Stakeholders notified | External systems updated |
+| **OrderVersionCreated** | Version tracking | History preserved | Amendment history |
+
+### Enhanced HL7 Integration Events
+
+| Event | Description | HL7 Message Type | Processing Impact |
+|-------|-------------|------------------|-------------------|
+| **HL7OrderMessageReceived** | Standard order message | ORM^O01 | Standard workflow |
+| **HL7STATOrderReceived** | STAT order message | ORM^O01 (STAT) | Expedited workflow |
+| **HL7AmendmentReceived** | Order amendment | ORM^O01 (amendment) | Change processing |
+| **HL7CancellationReceived** | Order cancellation | ORM^O01 (cancel) | Workflow termination |
+| **HL7AcknowledgmentSent** | Standard ACK | ACK^O01 (AA) | Confirmation sent |
+| **HL7ErrorResponse** | Error NACK | ACK^O01 (AE/AR) | Error communicated |
+| **HL7ResultsSent** | Results transmission | ORU^R01 | Results delivered |
+| **HL7StatusUpdate** | Status notification | ORU^R01 (status) | Progress communicated |
 
 | Event | Description | Processing Impact |
 |-------|-------------|-------------------|

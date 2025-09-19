@@ -20,10 +20,15 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **SampleRegistered** | New sample entered into system | Sample creation | High | High | Full |
+| **STATSampleAlert** | STAT priority sample alert | STAT sample registration | High | Low | Full |
 | **SampleTestingStarted** | First analysis created for sample | Analysis creation | High | High | Full |
-| **SampleCompleted** | All analyses finished | Last analysis finalized | High | High | Full |
-| **SampleRejected** | Sample fails acceptance criteria | QA rejection | High | Low | Full |
-| **SampleCanceled** | Administrative sample cancellation | Admin action | Medium | Low | Full |
+| **SampleCompleted** | All analyses finished (normal) | Last analysis finalized | High | High | Full |
+| **SampleCompletedWithCriticals** | All analyses finished (critical results) | Critical results present | High | Medium | Full |
+| **SampleRejected** | Internal sample rejection | QA rejection | High | Low | Full |
+| **ExternalSampleRejected** | External referral rejection | External rejection | High | Low | Full |
+| **SampleResultsReleased** | Electronic results release | Patient portal update | High | High | Full |
+| **SampleResultsPrinted** | Paper/fax results release | Manual delivery | Medium | Medium | Full |
+| **SampleRecalled** | Results recall for correction | Post-release error | High | Low | Full |
 
 ### Collection and Handling Events
 
@@ -32,8 +37,29 @@ Events are classified by:
 | **SampleCollected** | Physical sample collection | Collection timestamp | Medium | High | Full |
 | **SampleReceived** | Sample received in laboratory | Receipt logging | Medium | High | Full |
 | **SampleBarcodeGenerated** | Barcode label created | Label printing | Low | High | Full |
-| **SamplePriorityChanged** | Priority escalation/change | Priority update | Medium | Medium | Full |
+| **SamplePriorityUpdated** | Standard priority change | Priority update | Medium | Medium | Full |
+| **SampleEscalatedToSTAT** | Priority escalated to STAT | STAT authorization | High | Low | Full |
+| **SampleNoteAdded** | Regular documentation note | Standard annotation | Low | Medium | Full |
+| **SampleCriticalNoteAdded** | Critical/safety note | Safety concern | High | Low | Full |
 | **SampleStorageAssigned** | Storage location assigned | Storage management | Low | High | Partial |
+
+### Specialized Program Events
+
+| Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
+|------------|-------------|---------|-------------|-----------|----------------|
+| **SampleAssignedToPathology** | Sample assigned to pathology program | Pathology workflow selection | Medium | Medium | Full |
+| **SampleAssignedToIHC** | Sample assigned to immunohistochemistry | IHC program selection | Medium | Low | Full |
+| **SampleAssignedToCytology** | Sample assigned to cytology program | Cytology workflow selection | Medium | Medium | Full |
+| **SampleAssignedToGeneral** | Sample assigned to general laboratory | General lab workflow | Medium | High | Full |
+| **PathologyCaseCreated** | Pathology case initiated | Case registration | High | Medium | Full |
+| **GrossExaminationPerformed** | Gross examination completed | Pathology workflow | High | Medium | Full |
+| **MicroscopicExaminationStarted** | Microscopic examination begun | Pathology processing | High | Medium | Full |
+| **PathologyReportGenerated** | Pathology report created | Report creation | High | Medium | Full |
+| **IHCStainingCompleted** | Immunohistochemistry staining done | IHC processing | Medium | Low | Full |
+| **IHCInterpretationCompleted** | IHC interpretation finished | IHC results | Medium | Low | Full |
+| **CytologySlidePreparation** | Cytology slide prepared | Cytology processing | Medium | Medium | Full |
+| **CytologyScreeningCompleted** | Cytology screening finished | Cytology workflow | Medium | Medium | Full |
+| **CytologyClassificationAssigned** | Cytology classification determined | Classification system | High | Medium | Full |
 
 ### Quality Events
 
@@ -51,13 +77,19 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **AnalysisCreated** | New analysis ordered | Test ordering | High | High | Full |
+| **AnalysisPanelCreated** | Analysis panel/profile created | Panel ordering | High | Medium | Full |
 | **AnalysisStarted** | Testing process begun | Technician action | Medium | High | Full |
+| **AnalysisStartedOnAnalyzer** | Testing started on analyzer | Analyzer initiation | Medium | High | Full |
 | **ResultsEntered** | Test results input | Manual/analyzer entry | High | High | Full |
+| **CriticalResultsEntered** | Critical/panic values entered | Critical value detection | High | Low | Full |
 | **TechnicalValidation** | Technician validates results | Technical approval | High | High | Full |
 | **BiologistApproval** | Final professional approval | Biologist review | High | High | Full |
 | **AnalysisFinalized** | Results officially released | Final approval | High | High | Full |
 | **AnalysisRejected** | Results rejected | Quality rejection | High | Low | Full |
+| **AnalysisRejectedCascade** | Analysis rejection with cascade | Cascading rejection | High | Low | Full |
 | **AnalysisCanceled** | Testing canceled | Administrative action | Medium | Low | Full |
+| **AnalysisRepeated** | Analysis repeated due to issues | Repeat testing | Medium | Low | Full |
+| **AnalysisAmended** | Analysis amended post-release | Post-release correction | High | Low | Full |
 
 ### Result Management Events
 
@@ -65,18 +97,22 @@ Events are classified by:
 |------------|-------------|---------|-------------|-----------|----------------|
 | **ResultValueChanged** | Result value modified | Data correction | Medium | Medium | Full |
 | **ResultValidated** | Result passes validation | Validation rules | High | High | Full |
+| **ResultsValidatedWithOverride** | Results validated with override | Override validation | High | Low | Full |
 | **ResultFlagged** | Abnormal result detected | Range checking | Medium | Medium | Full |
 | **ResultCommented** | Comment added to result | Manual annotation | Low | Medium | Full |
 | **ResultCorrected** | Post-release correction | Error correction | High | Low | Full |
 | **CriticalValueDetected** | Panic value identified | Critical threshold | High | Low | Full |
+| **DeltaCheckFailed** | Delta check validation failed | Historical comparison | Medium | Low | Full |
 
 ### Analyzer Integration Events
 
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **AnalyzerResultReceived** | Automated result import | Analyzer interface | Medium | High | Full |
+| **AnalyzerResultImported** | Result successfully imported | Import completion | Medium | High | Full |
 | **AnalyzerResultValidated** | Import validation passed | Interface validation | Medium | High | Full |
 | **AnalyzerResultRejected** | Import validation failed | Interface error | Medium | Low | Full |
+| **AnalyzerQCFailed** | Analyzer QC check failed | QC validation | High | Low | Full |
 | **AnalyzerCalibrationChanged** | QC calibration updated | QC process | Medium | Medium | Partial |
 | **AnalyzerMaintenancePerformed** | Maintenance completed | Maintenance log | Low | Low | Partial |
 
@@ -85,6 +121,7 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **ReflexTestTriggered** | Conditional test ordered | Reflex conditions | Medium | Medium | Full |
+| **ReflexCascadeTriggered** | Multiple reflex tests ordered | Cascade conditions | Medium | Low | Full |
 | **ReflexTestCompleted** | Reflex testing finished | Secondary analysis | Medium | Medium | Full |
 | **ReflexRuleEvaluated** | Reflex rule processed | Rule engine | Low | Medium | Partial |
 
@@ -95,13 +132,27 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **QaEventReported** | Quality issue identified | Issue detection | High | Medium | Full |
+| **CriticalQAEventCreated** | Critical quality issue created | Critical issue detection | High | Low | Full |
 | **QaInvestigationStarted** | Investigation begun | Assignment to investigator | High | Medium | Full |
+| **InvestigatorAssigned** | Investigator assigned to QA event | Investigation assignment | High | Medium | Full |
+| **InvestigationSubmitted** | Investigation report submitted | Investigation completion | High | Medium | Full |
+| **InvestigationWithCAPA** | Investigation includes CAPA | CAPA requirement | High | Medium | Full |
 | **RootCauseIdentified** | RCA completed | Investigation findings | High | Medium | Full |
 | **CAPAPlanned** | Corrective action planned | Action planning | High | Medium | Full |
+| **CAPAApproved** | CAPA plan approved | Management approval | High | Medium | Full |
+| **CAPAConditionallyApproved** | CAPA conditionally approved | Conditional approval | High | Medium | Full |
 | **CAPAImplemented** | Actions completed | Implementation verified | High | Medium | Full |
+| **CAPAActionImplemented** | Individual CAPA action completed | Action completion | High | Medium | Full |
+| **CAPAActionPartiallyImplemented** | CAPA action partially completed | Partial implementation | Medium | Medium | Full |
 | **CAPAVerified** | Effectiveness confirmed | Verification process | High | Medium | Full |
 | **QaEventClosed** | Issue resolved | Final closure | High | Medium | Full |
+| **QaEventClosedWithConcerns** | Issue closed with concerns | Closure with reservations | High | Low | Full |
 | **QaEventEscalated** | Issue escalated | Management escalation | High | Low | Full |
+| **QAEventEscalated** | Quality event escalated | Process escalation | High | Low | Full |
+| **QAEventExecutiveEscalation** | Executive level escalation | Executive involvement | High | Low | Full |
+| **QaEventReopened** | Closed issue reopened | Issue reopening | High | Low | Full |
+| **QAEventReopened** | Quality event reopened | Standard reopening | High | Low | Full |
+| **QAEventUrgentReopen** | Urgent reopening of QA event | Emergency reopening | High | Low | Full |
 
 ### Non-Conforming Events
 
@@ -142,22 +193,36 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **PatientDemographicsUpdated** | Basic info changed | Data modification | Medium | Medium | Full |
+| **PatientSensitiveDataUpdated** | Sensitive information updated | Privacy data change | High | Low | Full |
 | **PatientNameChanged** | Name modification | Name update | Medium | Low | Full |
 | **PatientAddressUpdated** | Address changed | Address update | Low | Medium | Full |
 | **PatientContactUpdated** | Contact info changed | Contact update | Low | Medium | Full |
 | **PatientBirthDateCorrected** | DOB correction | Date correction | High | Low | Full |
 | **PatientGenderUpdated** | Gender information changed | Gender update | Medium | Low | Full |
 
+### Privacy and Special Status Events
+
+| Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
+|------------|-------------|---------|-------------|-----------|----------------|
+| **PatientPrivacyUpdated** | Privacy settings changed | Privacy modification | High | Low | Full |
+| **MinorPatientConsentUpdated** | Minor patient consent updated | Consent management | High | Low | Full |
+| **PatientVIPFlagged** | Patient marked as VIP | VIP designation | Medium | Low | Full |
+| **PatientHighProfileFlagged** | High profile patient flagged | Special handling | High | Low | Full |
+| **PatientDeathRecorded** | Patient death recorded | Death notification | High | Low | Full |
+| **PatientDeathLegalCase** | Death with legal implications | Legal case involvement | High | Low | Full |
+
 ### Identity Management Events
 
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **PatientIdentityAdded** | New identifier added | ID registration | Medium | Medium | Full |
+| **PatientNationalIDAdded** | National ID added to patient | National ID registration | High | Medium | Full |
 | **PatientIdentityVerified** | External verification | ID verification | High | Medium | Full |
 | **PatientIdentityFailed** | Verification failed | Verification error | High | Low | Full |
 | **PatientIdentityUpdated** | ID information changed | ID modification | Medium | Low | Full |
 | **DuplicatePatientDetected** | Potential duplicate found | Duplicate detection | High | Low | Full |
 | **PatientIdentityMerged** | Identity consolidation | Merge completion | High | Low | Full |
+| **PatientsMergedWithConflicts** | Patients merged with conflicts | Complex merge process | High | Low | Full |
 
 ## Referral Aggregate Events
 
@@ -166,11 +231,17 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **ReferralCreated** | External referral initiated | Referral request | High | Medium | Full |
+| **UrgentReferralCreated** | Urgent/STAT referral created | Urgent request | High | Low | Full |
 | **ReferralDocumentationComplete** | All info gathered | Documentation review | Medium | Medium | Full |
 | **ReferralSent** | Sent to external lab | Transmission | High | Medium | Full |
+| **ReferralTransmissionFailed** | Transmission to external failed | Communication error | High | Low | Full |
 | **ReferralAcknowledged** | External lab confirms | Acknowledgment | Medium | Medium | Full |
+| **ReferralPartiallyAccepted** | Partial acceptance by external | Partial processing | Medium | Low | Full |
 | **ReferralResultReceived** | External results back | Result reception | High | Medium | Full |
+| **ReferralCriticalResultsReceived** | Critical results received | Critical notification | High | Low | Full |
 | **ReferralResultReviewed** | Internal review complete | Review process | High | Medium | Full |
+| **ReferralResultsQuestioned** | Results questioned/disputed | Quality concern | High | Low | Full |
+| **ExternalReferralRejected** | External lab rejects referral | External rejection | High | Low | Full |
 | **ReferralCompleted** | Process finished | Final completion | High | Medium | Full |
 | **ReferralCanceled** | Referral terminated | Cancellation | Medium | Low | Full |
 
@@ -191,8 +262,12 @@ Events are classified by:
 |------------|-------------|---------|-------------|-----------|----------------|
 | **ReferralDelayed** | SLA deadline approaching | Timeline monitoring | Medium | Low | Partial |
 | **ReferralExpired** | SLA deadline exceeded | SLA violation | High | Low | Partial |
+| **ReferralSLAEscalated** | SLA escalation triggered | Timeline violation | High | Low | Full |
+| **ReferralFinalEscalation** | Final escalation for referral | Ultimate escalation | High | Low | Full |
 | **ReferralResultRejected** | Results fail validation | Quality check | High | Low | Full |
 | **ReferralPerformanceTracked** | Performance metrics updated | Metrics calculation | Low | Medium | Partial |
+| **ReferralBillingReconciled** | Billing reconciliation complete | Financial reconciliation | Medium | Low | Full |
+| **ReferralBillingDisputed** | Billing dispute raised | Financial dispute | Medium | Low | Full |
 
 ## Order Aggregate Events
 
@@ -201,12 +276,18 @@ Events are classified by:
 | Event Name | Description | Trigger | Criticality | Frequency | Audit Coverage |
 |------------|-------------|---------|-------------|-----------|----------------|
 | **OrderReceived** | HL7 message received | Message reception | High | High | Full |
+| **STATOrderReceived** | STAT priority order received | Urgent order reception | High | Low | Full |
 | **OrderValidated** | Validation complete | Message validation | High | High | Full |
+| **OrderValidationFailed** | Validation process failed | Validation error | High | Low | Full |
 | **OrderRejected** | Validation failed | Validation error | High | Low | Full |
 | **OrderProcessingStarted** | Processing initiated | Order processing | Medium | High | Full |
+| **OrderPatientCreated** | Patient created from order | Patient generation | High | Medium | Full |
 | **OrderSampleCreated** | Sample generated | Sample creation | High | High | Full |
+| **OrderAmended** | Order modification received | Order amendment | Medium | Low | Full |
+| **OrderAmendmentProcessed** | Amendment processing complete | Amendment completion | Medium | Low | Full |
 | **OrderRealized** | Fully processed | Processing complete | High | High | Full |
 | **OrderCanceled** | Order terminated | Cancellation message | Medium | Low | Full |
+| **OrderSTATCanceled** | STAT order canceled | Urgent cancellation | High | Low | Full |
 | **OrderProcessingFailed** | Processing error | System error | High | Low | Full |
 
 ### HL7 Integration Events

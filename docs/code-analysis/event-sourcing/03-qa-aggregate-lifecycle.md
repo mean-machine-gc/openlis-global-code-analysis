@@ -31,55 +31,108 @@ The QA Aggregate manages the complete quality assurance lifecycle in OpenELIS-Gl
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Reported : QA Issue Identified
-    Reported --> UnderInvestigation : Investigation Started
-    UnderInvestigation --> AwaitingAction : Root Cause Found
-    AwaitingAction --> ActionInProgress : CAPA Implementation
-    ActionInProgress --> AwaitingVerification : Action Completed
-    AwaitingVerification --> Closed : Verification Passed
-    AwaitingVerification --> ActionInProgress : Verification Failed
-    UnderInvestigation --> Reported : Additional Info Needed
-    AwaitingAction --> Closed : No Action Required
-    Reported --> Closed : False Alarm
+    [*] --> OPEN : QA Issue Identified
+    OPEN --> CRITICAL_OPEN : Critical Severity
+    CRITICAL_OPEN --> INVESTIGATING : Auto-Assignment
+    OPEN --> INVESTIGATING : Investigation Started
+    INVESTIGATING --> REVIEW : Investigation Submitted
+    INVESTIGATING --> PENDING_CAPA : CAPA Required
+    REVIEW --> CLOSED : No Action Required
+    PENDING_CAPA --> CAPA_ACTIVE : CAPA Approved
+    PENDING_CAPA --> CAPA_CONDITIONAL : Conditional Approval
+    CAPA_ACTIVE --> CLOSED : All Actions Complete
+    CAPA_CONDITIONAL --> CAPA_ACTIVE : Conditions Met
+    CLOSED --> REOPENED : New Evidence
+    CLOSED --> URGENT_REOPENED : Urgent Evidence
+    REOPENED --> INVESTIGATING : Investigation Resumed
+    URGENT_REOPENED --> CRITICAL_OPEN : Emergency Protocol
+    CLOSED --> CLOSED_MONITORED : Closure with Concerns
     
-    note right of Reported : QA Team Notified
-    note right of UnderInvestigation : RCA Process
-    note right of AwaitingAction : CAPA Planning
-    note right of Closed : Metrics Updated
+    note right of CRITICAL_OPEN : 24hr SLA, Management Alert
+    note right of INVESTIGATING : RCA Process Active
+    note right of CAPA_ACTIVE : Actions Being Implemented
+    note right of URGENT_REOPENED : Immediate Investigation
+    note right of CLOSED_MONITORED : Ongoing Monitoring
 ```
 
-## Non-Conforming Event Workflow
+## Enhanced CAPA Workflow
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NCEReported : Non-Conformance Detected
-    NCEReported --> NCEInvestigating : Investigation Assignment
-    NCEInvestigating --> CAPAPlanning : Root Cause Analysis Complete
-    CAPAPlanning --> CAPAImplementation : Action Plan Approved
-    CAPAImplementation --> CAPAVerification : Implementation Complete
-    CAPAVerification --> NCEClosed : Verification Successful
-    CAPAVerification --> CAPAImplementation : Rework Required
-    NCEInvestigating --> NCEReported : More Information Needed
-    NCEReported --> NCEClosed : Determined Not NCE
+    [*] --> CAPA_PLANNING : CAPA Required
+    CAPA_PLANNING --> CAPA_PENDING_APPROVAL : Actions Proposed
+    CAPA_PENDING_APPROVAL --> CAPA_ACTIVE : Standard Approval
+    CAPA_PENDING_APPROVAL --> CAPA_CONDITIONAL : Conditional Approval
+    CAPA_CONDITIONAL --> CAPA_ACTIVE : Conditions Met
+    CAPA_ACTIVE --> CAPA_IMPLEMENTING : Implementation Started
+    CAPA_IMPLEMENTING --> CAPA_PARTIAL : Issues Encountered
+    CAPA_IMPLEMENTING --> CAPA_COMPLETED : All Actions Done
+    CAPA_PARTIAL --> CAPA_IMPLEMENTING : Issues Resolved
+    CAPA_PARTIAL --> CAPA_ESCALATED : Management Needed
+    CAPA_ESCALATED --> CAPA_IMPLEMENTING : Resources Provided
+    CAPA_COMPLETED --> CAPA_VERIFIED : Effectiveness Confirmed
+    CAPA_VERIFIED --> [*] : QA Event Closed
     
-    note right of NCEReported : Immediate Containment
-    note right of CAPAPlanning : Preventive Actions
-    note right of NCEClosed : Effectiveness Review
+    note right of CAPA_CONDITIONAL : Limited Budget, Review Required
+    note right of CAPA_PARTIAL : Timeline Adjusted, Resources Requested
+    note right of CAPA_ESCALATED : Executive Attention Required
+```
+
+## Escalation and Monitoring Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> SLA_MONITORING : Event Created
+    SLA_MONITORING --> SLA_WARNING : Approaching Deadline
+    SLA_WARNING --> SLA_BREACH : Deadline Exceeded
+    SLA_BREACH --> ESCALATION_L1 : First Escalation
+    ESCALATION_L1 --> ESCALATION_L2 : No Response
+    ESCALATION_L2 --> EXECUTIVE_ESCALATION : Critical Breach
+    EXECUTIVE_ESCALATION --> CRISIS_PROTOCOL : Business Impact
+    SLA_WARNING --> RESOLVED : Timely Resolution
+    ESCALATION_L1 --> RESOLVED : L1 Resolution
+    ESCALATION_L2 --> RESOLVED : L2 Resolution
+    EXECUTIVE_ESCALATION --> RESOLVED : Executive Resolution
+    RESOLVED --> [*] : Monitoring Complete
+    
+    note right of EXECUTIVE_ESCALATION : C-Level Notification
+    note right of CRISIS_PROTOCOL : Compliance Risk Management
 ```
 
 ## Domain Events
 
 ### Primary QA Events
 
-| Event | Trigger | State Transition | Audit Trail Location |
-|-------|---------|------------------|---------------------|
-| **QaEventReported** | Quality issue identified | null → Reported | `history.activity = 'I'` |
-| **QaInvestigationStarted** | Investigation assigned | Reported → UnderInvestigation | `history.activity = 'U'` |
-| **RootCauseIdentified** | RCA completed | UnderInvestigation → AwaitingAction | `history.activity = 'U'` |
-| **CAPAPlanned** | Action plan created | AwaitingAction → ActionInProgress | `history.activity = 'U'` |
-| **CAPAImplemented** | Actions completed | ActionInProgress → AwaitingVerification | `history.activity = 'U'` |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **QAEventCreated** | Minor/Major severity | null → OPEN | Valid QA category, associated entity exists | **QA-001**: As a lab technician I want to report quality issues |
+| **CriticalQAEventCreated** | Critical severity | null → CRITICAL_OPEN | Auto-assignment to senior, 24hr SLA | **QA-001**: Critical severity branch with emergency protocol |
+| **InvestigatorAssigned** | Investigation assignment | OPEN → INVESTIGATING | Qualified investigator, workload balancing | **QA-002**: As a QA manager I want to assign investigators |
+| **InvestigationSubmitted** | Investigation complete (no CAPA) | INVESTIGATING → REVIEW | Root cause documented, no actions needed | **QA-003**: As a QA investigator I want to submit findings |
+| **InvestigationWithCAPA** | Investigation complete (CAPA required) | INVESTIGATING → PENDING_CAPA | Actions proposed, risk assessment complete | **QA-003**: CAPA required branch with action planning |
+| **CAPAApproved** | Standard CAPA approval | PENDING_CAPA → CAPA_ACTIVE | Manager approval, budget allocated | **QA-004**: As a QA manager I want to approve CAPA actions |
+| **CAPAConditionallyApproved** | Conditional CAPA approval | PENDING_CAPA → CAPA_CONDITIONAL | Conditions documented, limited budget | **QA-004**: Conditional approval branch with review schedule |
+| **CAPAActionImplemented** | Standard implementation | CAPA_ACTIVE → CAPA_ACTIVE | Evidence recorded, effectiveness pending | **QA-005**: As a process owner I want to implement CAPA actions |
+| **CAPAActionPartiallyImplemented** | Implementation with issues | CAPA_ACTIVE → CAPA_ACTIVE | Issues documented, timeline revised | **QA-005**: Implementation issues branch requiring escalation |
+| **QAEventEscalated** | Standard escalation | Any → (same with escalation) | SLA exceeded, next level notified | **QA-006**: As a QA supervisor I want to escalate overdue events |
+| **QAEventExecutiveEscalation** | Executive escalation | Any → (same with executive alert) | Compliance risk, business impact noted | **QA-006**: Executive escalation with crisis protocol |
+| **QAEventClosed** | Standard closure | CAPA_ACTIVE/REVIEW → CLOSED | All actions complete, effectiveness verified | **QA-007**: As a QA manager I want to close completed events |
+| **QAEventClosedWithConcerns** | Closure with monitoring | CAPA_ACTIVE/REVIEW → CLOSED_MONITORED | Concerns documented, monitoring required | **QA-007**: Closure with ongoing monitoring concerns |
+| **QAEventReopened** | Standard reopen | CLOSED → REOPENED | Valid reason, new evidence provided | **QA-008**: As a QA investigator I want to reopen closed events |
+| **QAEventUrgentReopen** | Urgent reopen | CLOSED → URGENT_REOPENED | Potential harm, immediate actions required | **QA-008**: Urgent reopen with immediate investigation |
 | **CAPAVerified** | Verification passed | AwaitingVerification → Closed | `history.activity = 'U'` |
 | **QaEventClosed** | Issue resolved | Any → Closed | `history.activity = 'U'` |
+
+### User Interface Integration Events
+
+| Event | Description | UI Impact | Workflow Effect |
+|-------|-------------|-----------|----------------|
+| **RedFlagActivated** | NCE red flag displayed | Visual indicator throughout UI | Sample/result progression blocked |
+| **RedFlagCleared** | NCE red flag removed | Visual indicator cleared | Workflow progression resumed |
+| **NCEWorkflowBlocked** | Workflow halted | Process steps disabled | User guided to NCE resolution |
+| **NCENotificationSent** | System notification triggered | Alert message displayed | User action required |
+| **NCECategorySelected** | Event type classification | Category-specific workflows enabled | Investigation procedures defined |
+| **NCETimelineUpdated** | Due date management | Progress indicators updated | SLA monitoring active |
 
 ### Sample QA Events
 

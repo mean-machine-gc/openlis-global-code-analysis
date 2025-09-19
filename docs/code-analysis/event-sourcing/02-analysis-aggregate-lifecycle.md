@@ -77,35 +77,50 @@ stateDiagram-v2
 
 ### Primary Analysis Events
 
-| Event | Trigger | State Transition | Audit Trail Location |
-|-------|---------|------------------|---------------------|
-| **AnalysisCreated** | Test ordered on sample | null → NotStarted | `history.activity = 'I'` |
-| **ResultsEntered** | Manual/analyzer input | NotStarted → TechnicalAcceptance | `history.activity = 'U'` |
-| **TechnicalValidation** | Technician approval | (status maintained) | `history.activity = 'U'` |
-| **BiologistApproval** | Final approval | TechnicalAcceptance → Finalized | `history.activity = 'U'` |
-| **AnalysisFinalized** | Results released | (status maintained) | `history.activity = 'U'` |
-| **TechnicalRejection** | Technician rejects | NotStarted → TechnicalRejected | `history.activity = 'U'` |
-| **BiologistRejection** | Biologist rejects | TechnicalAcceptance → BiologistRejected | `history.activity = 'U'` |
-| **AnalysisCanceled** | Administrative action | Any → Canceled | `history.activity = 'U'` |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **AnalysisCreated** | Test ordered on sample | null → NotStarted | Valid sample item, active test configuration | **ANA-001**: As a lab technician I want to create analyses for ordered tests |
+| **ResultsEnteredByUnit** | Unit-based result entry | NotStarted → TechnicalAcceptance | Laboratory unit validation, batch processing | **ANA-002**: As a technician I want to enter results by laboratory unit |
+| **ResultsEnteredByPatient** | Patient-based result entry | NotStarted → TechnicalAcceptance | Patient-specific view, complete test profile | **ANA-002**: Patient-focused branch for comprehensive care |
+| **ResultsEnteredByOrder** | Order-based result entry | NotStarted → TechnicalAcceptance | Order-centric workflow, accession number lookup | **ANA-002**: Order-focused branch for workflow efficiency |
+| **ResultsEnteredByRange** | Range-based bulk entry | NotStarted → TechnicalAcceptance | Range validation, bulk processing authorization | **ANA-002**: Bulk processing branch for high-volume operations |
+| **ResultsEnteredByDate** | Date-filtered result entry | NotStarted → TechnicalAcceptance | Date range validation, filtering by test status | **ANA-002**: Date-based branch for time-organized workflows |
+| **TechnicalValidation** | Technician approval | (status maintained) | Competency validation, test-specific authorization | **ANA-003**: As a technician I want to validate my results |
+| **BiologistApproval** | Final approval | TechnicalAcceptance → Finalized | Biologist authorization, critical value review | **ANA-004**: As a biologist I want to approve results for release |
+| **BatchValidationNormal** | Save All Normal results | TechnicalAcceptance → Finalized | All results within normal ranges | **ANA-005**: As a validator I want to batch approve normal results |
+| **BatchValidationAll** | Save All Results | TechnicalAcceptance → Finalized | Bulk approval authorization, quality override | **ANA-005**: Bulk approval branch with supervisor authorization |
+| **BatchRetesting** | Retest All Results | TechnicalAcceptance → NotStarted | Quality concerns, systematic retest authorization | **ANA-006**: As a supervisor I want to retest batch results |
+| **TechnicalRejection** | Technician rejects | NotStarted → TechnicalRejected | Rejection reason required, QA event creation | **ANA-007**: As a technician I want to reject problematic analyses |
+| **BiologistRejection** | Biologist rejects | TechnicalAcceptance → BiologistRejected | Professional review, QA escalation | **ANA-008**: As a biologist I want to reject unacceptable results |
+| **AnalysisCanceled** | Administrative action | Any → Canceled | Administrative authorization, cancellation reason | **ANA-009**: As an administrator I want to cancel analyses when needed |
 
 ### Result Management Events
 
-| Event | Description | Trigger Conditions |
-|-------|-------------|-------------------|
-| **ResultValueChanged** | Result value updated | During validation process |
-| **ResultValidated** | Result passes validation | Range/rule checks pass |
-| **ResultFlagged** | Abnormal result detected | Outside reference ranges |
-| **ResultCommented** | Comment added | Manual annotation |
-| **ResultCorrected** | Value correction | Post-release correction |
+| Event | Description | Branching Condition | Validation Impact |
+|-------|-------------|--------------------|-----------------|
+| **NumericResultEntered** | Numeric value with validation | Result type = Numeric | Range validation, significant digits |
+| **TextResultEntered** | Qualitative text result | Result type = Text | Format validation, standardized terms |
+| **DropdownResultSelected** | Coded result selection | Result type = Dictionary | Valid code validation, mapping verification |
+| **MultiSelectResultChosen** | Multiple choice result | Result type = MultiSelect | Selection combination validation |
+| **ResultNoteAdded** | Standard comment/annotation | Comment entry | Documentation tracking |
+| **ResultCriticalNoteAdded** | Critical safety note | Critical flag annotation | Safety alert, supervisor notification |
+| **ResultAcceptanceToggled** | Accept checkbox status | Acceptance workflow | Validation state changed |
+| **CurrentResultDisplayed** | Previous value shown | Historical comparison | Context for validation |
+| **NormalRangeValidated** | Range check performed | Reference range comparison | Flag if outside normal |
+| **CriticalValueAlerted** | Panic value detected | Critical threshold exceeded | Immediate provider notification |
+| **ResultRedFlagged** | Quality issue flagged | NCE integration | Sample/result blocking |
+| **AnalyzerResultImported** | Instrument data received | Analyzer interface | Import timestamp, source tracking |
 
-### Analyzer Integration Events
+### Quality Control Events
 
-| Event | Description | Impact |
-|-------|-------------|---------|
-| **AnalyzerResultReceived** | Automated result import | Triggers validation workflow |
-| **AnalyzerResultValidated** | Import validation passed | Ready for technical review |
-| **AnalyzerResultRejected** | Import validation failed | Manual intervention required |
-| **AnalyzerCalibrationChanged** | QC calibration update | May affect result interpretation |
+| Event | Description | QC Impact | Workflow Effect |
+|-------|-------------|-----------|----------------|
+| **QCCheckPassed** | Quality control verified | QC current | Results valid |
+| **QCCheckFailed** | Quality control failed | QC expired | Results blocked |
+| **CalibrationUpdated** | Analyzer calibrated | New baseline | Previous results reviewed |
+| **MaintenanceAlert** | Service required | Analyzer flagged | Results questioned |
+| **BatchProcessingStarted** | Batch analysis begun | Multiple samples | Efficiency tracking |
+| **BatchProcessingCompleted** | Batch analysis finished | All samples processed | Batch metrics calculated |
 
 ## Business Rules
 

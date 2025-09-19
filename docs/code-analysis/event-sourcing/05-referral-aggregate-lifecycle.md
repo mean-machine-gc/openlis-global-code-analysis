@@ -103,14 +103,29 @@ stateDiagram-v2
 | **FHIRResultsReceived** | DiagnosticReport received | DiagnosticReport |
 | **FHIRResultsMapped** | External results mapped to local format | Various |
 
-### Quality and Exception Events
+### Enhanced Quality and Exception Events
 
-| Event | Description | Impact |
-|-------|-------------|---------|
-| **ReferralDelayed** | SLA deadline approaching | Escalation triggered |
-| **ReferralExpired** | SLA deadline exceeded | Management notification |
-| **ReferralResultRejected** | Results fail validation | Re-processing required |
-| **ReferralCommunicationError** | Transmission failure | Retry mechanism activated |
+| Event | Description | Branching Condition | Impact |
+|-------|-------------|--------------------|---------|
+| **ReferralDelayed** | SLA deadline approaching | Standard warning | Escalation triggered |
+| **ReferralExpired** | SLA deadline exceeded | Final warning | Management notification |
+| **ReferralResultRejected** | Results fail validation | Quality failure | Re-processing required |
+| **ReferralCommunicationError** | Transmission failure | Network/system error | Retry mechanism activated |
+| **ReferralUrgentEscalation** | Critical SLA breach | Emergency escalation | Executive notification |
+| **ReferralVendorIssue** | External lab problem | Vendor performance | Alternative routing |
+| **ReferralBillingAlert** | Billing anomaly | Cost variance | Financial review |
+| **ReferralIntegrationError** | FHIR mapping failure | Technical error | Manual intervention |
+
+### Billing and Financial Events
+
+| Event | Description | Financial Impact | Resolution Action |
+|-------|-------------|------------------|-------------------|
+| **ReferralCostEstimate** | Initial cost calculation | Budget planning | Pre-authorization |
+| **ReferralInvoiceReceived** | External lab invoice | Payment due | Reconciliation process |
+| **ReferralPaymentApproved** | Payment authorization | Cash flow | Invoice payment |
+| **ReferralCostVariance** | Unexpected charges | Budget impact | Variance analysis |
+| **ReferralRefundProcessed** | Credit received | Cost adjustment | Account reconciliation |
+| **ReferralBillingAudit** | Financial review | Compliance check | Audit documentation |
 
 ## Business Rules
 

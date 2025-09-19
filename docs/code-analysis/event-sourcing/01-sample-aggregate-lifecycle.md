@@ -25,42 +25,82 @@ The Sample Aggregate is the core laboratory specimen management entity in OpenEL
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SampleEntered : Sample Registration
-    SampleEntered --> SampleStarted : First Analysis Created
-    SampleStarted --> SampleCompleted : All Analyses Finished
-    SampleStarted --> SampleRejected : Quality Rejection
-    SampleEntered --> SampleRejected : Pre-analysis Rejection
-    SampleEntered --> SampleCanceled : Administrative Cancellation
-    SampleStarted --> SampleCanceled : Administrative Cancellation
-    SampleRejected --> [*]
-    SampleCanceled --> [*]
-    SampleCompleted --> [*]
+    [*] --> REGISTERED : Sample Registration
+    REGISTERED --> COLLECTED : Sample Collected
+    REGISTERED --> FLAGGED : NCE Red Flag
+    COLLECTED --> IN_PROGRESS : Testing Started
+    COLLECTED --> FLAGGED : Quality Issues Found
+    IN_PROGRESS --> COMPLETED : All Analyses Finished
+    IN_PROGRESS --> COMPLETED_CRITICAL : Critical Results Found
+    IN_PROGRESS --> REJECTED : Quality Rejection
+    IN_PROGRESS --> FLAGGED : NCE During Testing
+    REGISTERED --> REJECTED : Pre-analysis Rejection
+    REGISTERED --> REJECTED_EXTERNAL : External Sample Rejected
+    FLAGGED --> IN_PROGRESS : NCE Resolved
+    FLAGGED --> REJECTED : NCE Requires Rejection
+    COMPLETED --> RELEASED : Results Released
+    COMPLETED_CRITICAL --> RELEASED : Critical Acknowledged
+    COMPLETED --> RECALLED : Results Recalled
+    RELEASED --> RECALLED : Post-Release Recall
+    REJECTED --> [*]
+    REJECTED_EXTERNAL --> [*]
+    RECALLED --> [*]
+    RELEASED --> [*]
     
-    note right of SampleRejected : QA Event Created
-    note right of SampleStarted : Analysis Aggregate Created
-    note right of SampleCompleted : Results Available
+    note right of FLAGGED : Non-Conforming Event Active
+    note right of REJECTED : QA Event Created
+    note right of IN_PROGRESS : Analysis Aggregates Created
+    note right of COMPLETED_CRITICAL : Provider Notification Required
+    note right of RELEASED : Results Available to Patient
 ```
 
 ## Domain Events
 
 ### Primary Events
 
-| Event | Trigger | State Transition | Audit Trail Location |
-|-------|---------|------------------|---------------------|
-| **SampleRegistered** | Sample entry in system | null → SampleEntered | `history.activity = 'I'` |
-| **SampleTestingStarted** | First analysis created | SampleEntered → SampleStarted | `history.activity = 'U'` |
-| **SampleCompleted** | All analyses finished | SampleStarted → SampleCompleted | `history.activity = 'U'` |
-| **SampleRejected** | QA rejection | Any → SampleRejected | `history.activity = 'U'` |
-| **SampleCanceled** | Administrative action | Any → SampleCanceled | `history.activity = 'U'` |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **SampleRegistered** | Sample entry in system | null → REGISTERED | Unique accession number, valid patient ID, collection date validation | **SAM-001**: As a lab technician I want to register a new sample so that testing can begin |
+| **STATSampleAlert** | STAT priority sample registered | REGISTERED (STAT alert) | Priority = STAT, supervisor notification | **SAM-001**: STAT priority branch triggers immediate alerts |
+| **SampleCollected** | Physical collection completed | REGISTERED → COLLECTED | Collector assigned, collection timestamp, barcode generated | **SAM-002**: As a sample collector I want to mark sample as collected |
+| **SampleBarcodeGenerated** | Label printing triggered | Collection workflow | Unique barcode, tracking enabled | **SAM-002**: Barcode branch enables tracking |
+| **SampleFlagged** | NCE quality issue identified | Any → FLAGGED | Red flag visible in UI, blocks progression until resolved | **SAM-005**: As a quality officer I want to flag non-conforming samples |
+| **SampleNCEResolved** | Quality issue resolved | FLAGGED → Previous State | NCE closed, sample workflow resumes | **SAM-005**: NCE resolution branch allows workflow continuation |
+| **SampleTestingStarted** | First analysis created | COLLECTED → IN_PROGRESS | Sample must be collected, at least one analysis created | **SAM-003**: As a lab technician I want to start testing so that analyses can be performed |
+| **SampleCompleted** | All analyses finished (normal) | IN_PROGRESS → COMPLETED | All analyses completed, no critical results | **SAM-006**: As a lab supervisor I want to complete sample processing |
+| **SampleCompletedWithCriticals** | All analyses finished (critical) | IN_PROGRESS → COMPLETED_CRITICAL | Critical results present, provider notification required | **SAM-006**: Critical results branch requires special handling |
+| **SampleRejected** | Internal quality rejection | Any → REJECTED | Valid rejection reason, recollection flag set | **SAM-004**: As a sample receiver I want to reject unsuitable samples |
+| **ExternalSampleRejected** | External referral rejection | Any → REJECTED_EXTERNAL | External sample, referring lab notification | **SAM-004**: External sample branch with referral notification |
+| **SampleResultsReleased** | Electronic results release | COMPLETED → RELEASED | Electronic delivery, patient portal update | **SAM-007**: As a result validator I want to release sample results |
+| **SampleResultsPrinted** | Paper/fax results release | COMPLETED → RELEASED | Paper delivery, HIPAA compliance | **SAM-007**: Manual delivery branch with compliance tracking |
+| **SampleRecalled** | Results recall | RELEASED → RECALLED | Post-release error correction, provider notification | **SAM-008**: As a lab director I want to recall released results |
 
-### Secondary Events
+### Specialized Program Events
 
-| Event | Description | Cross-Aggregate Impact |
-|-------|-------------|------------------------|
-| **SamplePriorityChanged** | Priority escalation | Analysis scheduling affected |
-| **SampleCollectionUpdated** | Collection details modified | Patient notification triggered |
-| **SampleItemAdded** | Additional specimen | New analyses may be created |
-| **SampleBarcodeGenerated** | Label printing | Tracking system updated |
+| Event | Description | Branching Condition | Program Impact |
+|-------|-------------|--------------------|--------------| 
+| **SampleAssignedToPathology** | Sample assigned to pathology program | Program = Pathology | Pathology workflow templates applied |
+| **SampleAssignedToIHC** | Sample assigned to immunohistochemistry | Program = Immunohistochemistry | IHC-specific tests enabled |
+| **SampleAssignedToCytology** | Sample assigned to cytology program | Program = Cytology | Cytology classification systems enabled |
+| **SampleAssignedToGeneral** | Sample assigned to general laboratory | Program = General | Standard laboratory workflow |
+
+### Priority and Workflow Events
+
+| Event | Description | Branching Condition | Cross-Aggregate Impact |
+|-------|-------------|--------------------|-----------------------|
+| **SamplePriorityUpdated** | Priority change | Standard priority change | Analysis scheduling affected |
+| **SampleEscalatedToSTAT** | Escalated to STAT priority | STAT escalation with authorization | Lab alerts, queue jumping, TAT changes |
+| **SampleNoteAdded** | Regular documentation | Standard note | Audit trail updated |
+| **SampleCriticalNoteAdded** | Critical/safety note | Critical note flagged | Supervisors alerted, work paused |
+
+### Collection and Handling Events
+
+| Event | Description | State Impact | Integration Points |
+|-------|-------------|--------------|-------------------|
+| **SampleCollected** | Physical collection completed | Collection status updated | Collection facility tracking |
+| **SampleReceived** | Received in laboratory | Receiving timestamp recorded | Chain of custody tracking |
+| **SampleItemAdded** | Additional specimen container | Container count updated | New analyses may be created |
+| **SampleBarcodeGenerated** | Label printing | Tracking system updated | LIMS integration |
 
 ## Business Rules
 
@@ -140,10 +180,19 @@ public String insert(Sample sample) {
 ```
 SampleStream-{accessionNumber}:
   1. SampleRegistered
-  2. SampleItemAdded
+      → STATSampleAlert (if STAT priority)
+  2. SampleItemAdded (optional, multiple)
   3. SampleTestingStarted
-  4. SamplePriorityChanged (optional)
-  5. SampleCompleted | SampleRejected | SampleCanceled
+  4. SamplePriorityUpdated (optional)
+      → SampleEscalatedToSTAT (if escalated to STAT)
+  5. SampleNoteAdded (optional, multiple)
+      → SampleCriticalNoteAdded (if critical/safety)
+  6. SampleCompleted | SampleCompletedWithCriticals
+  7. SampleResultsReleased | SampleResultsPrinted
+  8. SampleRecalled (optional)
+      
+Alternative paths:
+  - SampleRejected | ExternalSampleRejected (at any point)
 ```
 
 ### Snapshot Strategy
@@ -154,11 +203,15 @@ SampleStream-{accessionNumber}:
 ## Metrics and Analytics
 
 ### Key Performance Indicators
-- Sample registration rate
-- Time to testing initiation
-- Sample rejection rates by reason
-- Priority distribution patterns
-- Collection facility performance
+- Sample registration rate (from SampleRegistered events)
+- STAT sample response time (STATSampleAlert to completion)
+- Time to testing initiation (SampleRegistered to SampleTestingStarted)
+- Sample rejection rates by reason (SampleRejected events)
+- Critical result handling time (SampleCompletedWithCriticals to acknowledgment)
+- Priority distribution patterns (priority tracking across events)
+- Collection facility performance (collection events by facility)
+- Recall frequency and reasons (SampleRecalled events)
+- Release method distribution (electronic vs paper)
 
 ### Event-Driven Analytics
 ```mermaid

@@ -31,23 +31,29 @@ The Patient Aggregate manages patient demographics, identity verification, and r
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft : Initial Registration
-    Draft --> Provisional : Basic Validation Complete
-    Provisional --> Verified : Identity Confirmed
-    Verified --> Active : First Sample Collected
-    Active --> Inactive : No Activity Period
-    Inactive --> Active : Sample Collection Resume
-    Active --> Merged : Duplicate Resolution
-    Draft --> Canceled : Registration Canceled
-    Provisional --> Canceled : Validation Failed
-    Merged --> [*]
-    Canceled --> [*]
+    [*] --> ACTIVE : Patient Registration
+    ACTIVE --> VIP_STANDARD : VIP Flag Set
+    ACTIVE --> VIP_HIGH_PROFILE : High-Profile VIP
+    VIP_STANDARD --> ACTIVE : VIP Status Removed
+    VIP_HIGH_PROFILE --> VIP_STANDARD : Downgrade VIP Level
+    VIP_STANDARD --> VIP_HIGH_PROFILE : Upgrade VIP Level
+    ACTIVE --> DECEASED : Death Recorded
+    VIP_STANDARD --> DECEASED : Death Recorded
+    VIP_HIGH_PROFILE --> DECEASED : Death Recorded
+    DECEASED --> DECEASED_LEGAL : Legal Hold Applied
+    ACTIVE --> MERGED : Duplicate Resolution
+    VIP_STANDARD --> MERGED : Duplicate Resolution
+    VIP_HIGH_PROFILE --> MERGED : Duplicate Resolution
+    MERGED --> [*]
+    DECEASED --> [*]
+    DECEASED_LEGAL --> [*]
     
-    note right of Draft : Minimal Data Entry
-    note right of Provisional : Ready for Identity Check
-    note right of Verified : Identity Confirmed
-    note right of Active : Laboratory Services Available
-    note right of Merged : Consolidated Record
+    note right of ACTIVE : Standard Laboratory Services
+    note right of VIP_STANDARD : Special Handling Active
+    note right of VIP_HIGH_PROFILE : Maximum Security Protocol
+    note right of DECEASED : No New Samples Allowed
+    note right of DECEASED_LEGAL : Investigation Hold
+    note right of MERGED : Consolidated Record
 ```
 
 ## Identity Management Workflow
@@ -70,35 +76,70 @@ stateDiagram-v2
 
 ### Primary Patient Events
 
-| Event | Trigger | State Transition | Audit Trail Location |
-|-------|---------|------------------|---------------------|
-| **PatientRegistered** | Initial patient entry | null → Draft | `history.activity = 'I'` |
-| **PatientValidated** | Basic validation complete | Draft → Provisional | `history.activity = 'U'` |
-| **PatientIdentityVerified** | Identity confirmation | Provisional → Verified | `history.activity = 'U'` |
-| **PatientActivated** | First sample collected | Verified → Active | `history.activity = 'U'` |
-| **PatientDeactivated** | Inactivity period | Active → Inactive | `history.activity = 'U'` |
-| **PatientReactivated** | Resume activity | Inactive → Active | `history.activity = 'U'` |
-| **PatientMerged** | Duplicate resolution | Any → Merged | `history.activity = 'U'` |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **PatientRegistered** | Patient registration | null → ACTIVE | Unique identity verification, age/DOB validation | **PAT-001**: As a registration clerk I want to register new patients |
+| **PatientDemographicsUpdated** | Standard demographics change | ACTIVE (no state change) | Verify authorization, validate data formats | **PAT-002**: As a registration clerk I want to update patient demographics |
+| **PatientSensitiveDataUpdated** | Sensitive field changes | ACTIVE (enhanced audit) | Enhanced authorization, compliance flags | **PAT-002**: Sensitive data branch with enhanced compliance |
+| **PatientIdentityAdded** | Standard identity addition | ACTIVE (no state change) | Identity type validation, no duplicates | **PAT-003**: As a registration clerk I want to add additional patient identities |
+| **PatientNationalIDAdded** | National ID addition | ACTIVE (high confidence) | Government validation, official verification | **PAT-003**: National ID branch with official validation |
+| **PatientsMerged** | Standard merge | Any → MERGED | Duplicate verification, preserve all identities | **PAT-004**: As a data manager I want to merge duplicate patient records |
+| **PatientsMergedWithConflicts** | Complex merge with conflicts | Any → MERGED | Conflict resolution, manual review required | **PAT-004**: Complex merge branch with manual review |
 
-### Demographics Events
+### Privacy and Consent Events
 
-| Event | Description | Privacy Impact |
-|-------|-------------|----------------|
-| **PatientDemographicsUpdated** | Basic info changed | Audit trail required |
-| **PatientNameChanged** | Name modification | Identity verification may be required |
-| **PatientAddressUpdated** | Address change | Geographic data updated |
-| **PatientContactUpdated** | Phone/email change | Communication preferences affected |
-| **PatientBirthDateCorrected** | DOB correction | Age-based validations updated |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **PatientPrivacyUpdated** | Adult consent change | ACTIVE (privacy updated) | Valid consent types, legal compliance | **PAT-005**: As a privacy officer I want to update patient privacy consent |
+| **MinorPatientConsentUpdated** | Minor consent change | ACTIVE (guardian consent) | Guardian authorization, special protection | **PAT-005**: Minor consent branch with guardian requirements |
 
-### Identity Management Events
+### VIP Management Events
 
-| Event | Description | Security Impact |
-|-------|-------------|-----------------|
-| **PatientIdentityAdded** | New identifier added | Cross-reference integrity |
-| **PatientIdentityVerified** | External verification | Trust level increased |
-| **PatientIdentityFailed** | Verification failed | Manual review required |
-| **PatientIdentityUpdated** | ID information changed | Re-verification triggered |
-| **DuplicatePatientDetected** | Potential duplicate found | Merge workflow initiated |
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **PatientVIPFlagged** | Standard VIP designation | ACTIVE → VIP_STANDARD | Authorization required, access logging | **PAT-006**: As a facility administrator I want to flag VIP patients |
+| **PatientHighProfileFlagged** | High-profile VIP | ACTIVE → VIP_HIGH_PROFILE | Executive notification, maximum security | **PAT-006**: High-profile branch with maximum security |
+
+### Death Recording Events
+
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **PatientDeathRecorded** | Natural death recording | Any → DECEASED | Official verification, block new samples | **PAT-007**: As a medical officer I want to record patient death |
+| **PatientDeathLegalCase** | Legal case death | Any → DECEASED_LEGAL | Legal hold, investigation flag | **PAT-007**: Legal case branch with investigation hold |
+
+### Demographics and Identity Events
+
+| Event | Description | Branching Condition | Privacy/Security Impact |
+|-------|-------------|--------------------|-----------------------|
+| **PatientNameChanged** | Name modification | Standard name change | Identity verification may be required |
+| **PatientAddressUpdated** | Standard address change | Standard address update | Geographic data updated |
+| **PatientAddressHierarchyUpdated** | Hierarchical address change | Country/region/district/commune structure | Administrative boundaries updated |
+| **PatientContactUpdated** | Phone/email change | Standard contact | Communication preferences affected |
+| **PatientBirthDateCorrected** | DOB correction | Standard correction | Age-based validations updated |
+| **PatientSearchIndexUpdated** | Search optimization | Search criteria change | Findability improved |
+| **PatientAdvancedSearchEnabled** | Partial matching enabled | Complex search patterns | Search performance impact |
+| **PatientIdentityVerified** | External verification | Standard verification | Trust level increased |
+| **PatientIdentityFailed** | Verification failed | Verification failure | Manual review required |
+| **PatientIdentityUpdated** | ID information changed | Standard update | Re-verification triggered |
+| **DuplicatePatientDetected** | Potential duplicate found | Duplicate detection | Merge workflow initiated |
+
+### VIP-Specific Events
+
+| Event | Description | Security Level | Access Impact |
+|-------|-------------|---------------|---------------|
+| **VIPAccessLogged** | VIP patient accessed | Standard VIP | Enhanced audit trail |
+| **VIPSecurityAlert** | Unauthorized access attempt | High-profile VIP | Security team notified |
+| **VIPMediaAlert** | Media inquiry detected | High-profile VIP | Media protocol activated |
+| **VIPExecutiveNotification** | Executive level alert | High-profile VIP | C-level notification |
+
+### Death and Legal Events
+
+| Event | Description | Legal Impact | Workflow Impact |
+|-------|-------------|--------------|----------------|
+| **PatientSampleAccessBlocked** | Death recorded | Deceased status | No new samples allowed |
+| **PatientLegalHoldApplied** | Legal investigation | Legal case | Records preservation |
+| **PatientInvestigationFlagged** | Investigation required | Legal case | Authority notification |
+| **PatientRecordSealed** | Final disposition | Any death type | Access restricted |
 
 ## Business Rules
 
@@ -240,12 +281,27 @@ public void updatePatientDemographics(Patient patient, String changes) {
 ```
 PatientStream-{patientId}:
   1. PatientRegistered
-  2. PatientIdentityAdded (multiple possible)
-  3. PatientIdentityVerified
-  4. PatientValidated
-  5. PatientActivated
-  6. PatientDemographicsUpdated (as needed)
-  7. PatientMerged | PatientDeactivated
+  2. PatientIdentityAdded (optional, multiple)
+      → PatientNationalIDAdded (if national ID)
+  3. PatientIdentityVerified (optional)
+  4. PatientDemographicsUpdated (optional, multiple)
+      → PatientSensitiveDataUpdated (if sensitive fields)
+  5. PatientPrivacyUpdated (optional)
+      → MinorPatientConsentUpdated (if minor)
+  6. PatientVIPFlagged (optional)
+      → PatientHighProfileFlagged (if high-profile)
+  7. PatientDeathRecorded | PatientDeathLegalCase (optional)
+  8. PatientsMerged | PatientsMergedWithConflicts (optional)
+      
+VIP-specific events (if flagged):
+  - VIPAccessLogged (ongoing)
+  - VIPSecurityAlert (if unauthorized access)
+  - VIPMediaAlert (if media inquiry)
+      
+Death-related events (if deceased):
+  - PatientSampleAccessBlocked
+  - PatientLegalHoldApplied (if legal case)
+  - PatientRecordSealed (final)
 ```
 
 ### Snapshot Strategy
@@ -308,11 +364,16 @@ CREATE TABLE patient_pii_events (
 ## Metrics and Analytics
 
 ### Key Performance Indicators
-- Patient registration completion rates
-- Identity verification success rates
-- Duplicate detection accuracy
-- Demographics update frequency
-- Privacy compliance scores
+- Patient registration completion rates (PatientRegistered events)
+- Identity verification success rates (PatientIdentityVerified vs PatientIdentityFailed)
+- Duplicate detection accuracy (DuplicatePatientDetected to successful merges)
+- VIP patient access compliance (VIPAccessLogged events)
+- Death recording timeliness (PatientDeathRecorded events)
+- Legal case handling (PatientDeathLegalCase events)
+- Privacy consent updates (PatientPrivacyUpdated events)
+- Demographics update frequency (PatientDemographicsUpdated events)
+- High-profile VIP security incidents (VIPSecurityAlert events)
+- Minor consent management (MinorPatientConsentUpdated events)
 
 ### Event-Driven Analytics
 ```mermaid
