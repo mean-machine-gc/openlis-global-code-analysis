@@ -6,48 +6,233 @@ This document outlines the complex cross-aggregate workflows in OpenELIS-Global-
 
 ## Primary Laboratory Workflows
 
-### 1. Specialized Laboratory Program Workflows
+### 1. Pathology Program Cross-Aggregate Workflow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Patient as Patient Aggregate  
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    
+    %% Order and Sample Creation
+    Order->>Order: ManualOrderCreated
+    Order->>Patient: OrderPatientSelected
+    Order->>Order: OrderProgramSelected (Pathology)
+    Order->>Order: OrderSamplesAssigned
+    Order->>Order: ManualOrderFinalized
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToPathology
+    Sample->>Sample: SampleCollected
+    Sample->>Sample: SampleTestingStarted
+    
+    %% Pathology Analysis Workflow
+    Sample->>Analysis: PathologyAnalysisCreated
+    Analysis->>Analysis: PathologyGrossExamination
+    Analysis->>Analysis: PathologyMicroscopicExam
+    Analysis->>Analysis: PathologyDiagnosisEntered
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: BiologistApproval
+    Analysis->>Analysis: AnalysisFinalized
+    
+    %% Sample Completion
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+    
+    %% Error Scenarios
+    alt Quality Issues
+        Analysis->>QA: QAEventCreated
+        QA->>QA: InvestigatorAssigned
+        QA->>QA: InvestigationSubmitted
+        QA->>QA: QAEventClosed
+    end
+    
+    alt Critical Results
+        Analysis->>Sample: SampleCompletedWithCriticals
+        Sample->>Patient: Provider Notification
+        Sample->>Sample: SampleResultsReleased (After ACK)
+    end
+```
+
+### 2. Immunohistochemistry (IHC) Program Cross-Aggregate Workflow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    
+    %% Order and Sample Creation
+    Order->>Order: OrderProgramSelected (IHC)
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToIHC
+    Sample->>Sample: SampleCollected
+    Sample->>Sample: SampleTestingStarted
+    
+    %% IHC Analysis Workflow  
+    Sample->>Analysis: IHCAnalysisCreated
+    Analysis->>Analysis: IHCStainingPerformed
+    
+    %% Quality Control Check
+    alt Staining QC Failed
+        Analysis->>QA: QAEventCreated (Staining Issue)
+        QA->>QA: InvestigatorAssigned
+        QA->>Analysis: Restain Required
+        Analysis->>Analysis: IHCStainingPerformed (Repeat)
+    end
+    
+    Analysis->>Analysis: IHCResultsEvaluated
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: BiologistApproval
+    Analysis->>Analysis: AnalysisFinalized
+    
+    %% Sample Completion
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+```
+
+### 3. Cytology Program Cross-Aggregate Workflow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    
+    %% Order and Sample Creation
+    Order->>Order: OrderProgramSelected (Cytology)
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToCytology
+    Sample->>Sample: SampleCollected
+    Sample->>Sample: SampleTestingStarted
+    
+    %% Cytology Analysis Workflow
+    Sample->>Analysis: CytologyAnalysisCreated
+    Analysis->>Analysis: CytologyScreeningPerformed
+    
+    %% Screening Results
+    alt Abnormal Findings
+        Analysis->>Analysis: CytologyClassificationAssigned (Abnormal)
+        Analysis->>QA: QAEventCreated (Quality Review)
+        QA->>QA: InvestigatorAssigned
+        QA->>Analysis: Additional Review Required
+    else Normal Findings  
+        Analysis->>Analysis: CytologyClassificationAssigned (Normal)
+    end
+    
+    Analysis->>Analysis: TechnicalValidation
+    Analysis->>Analysis: BiologistApproval
+    Analysis->>Analysis: AnalysisFinalized
+    
+    %% Sample Completion
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+```
+
+### 4. General Laboratory Program Cross-Aggregate Workflow
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Aggregate
+    participant Sample as Sample Aggregate
+    participant Analysis as Analysis Aggregate
+    participant QA as QA Aggregate
+    
+    %% Standard Laboratory Workflow
+    Order->>Order: OrderProgramSelected (General)
+    Order->>Sample: SampleRegistered
+    Sample->>Sample: SampleAssignedToGeneral
+    Sample->>Sample: SampleCollected
+    Sample->>Sample: SampleTestingStarted
+    
+    %% Standard Analysis Workflow
+    Sample->>Analysis: AnalysisCreated
+    
+    %% Multiple Result Entry Methods
+    alt By Laboratory Unit
+        Analysis->>Analysis: ResultsEnteredByUnit
+    else By Patient
+        Analysis->>Analysis: ResultsEnteredByPatient  
+    else By Order
+        Analysis->>Analysis: ResultsEnteredByOrder
+    else By Range
+        Analysis->>Analysis: ResultsEnteredByRange
+    else By Date
+        Analysis->>Analysis: ResultsEnteredByDate
+    end
+    
+    %% Validation Options
+    Analysis->>Analysis: TechnicalValidation
+    alt Individual Validation
+        Analysis->>Analysis: BiologistApproval
+    else Batch Validation Normal
+        Analysis->>Analysis: BatchValidationNormal
+    else Batch Validation All
+        Analysis->>Analysis: BatchValidationAll
+    end
+    
+    Analysis->>Analysis: AnalysisFinalized
+    Analysis->>Sample: SampleCompleted
+    Sample->>Sample: SampleResultsReleased
+```
+
+## Specialized Program Integration Patterns
+
+### Cross-Program Quality Assurance
 
 ```mermaid
 flowchart TD
-    A[OrderReceived] --> B{Program Selection}
-    B -->|General Lab| C[GeneralLabWorkflow]
-    B -->|Pathology| D[PathologyWorkflow] 
-    B -->|Immunohistochemistry| E[IHCWorkflow]
-    B -->|Cytology| F[CytologyWorkflow]
+    A[Any Program Sample] --> B{Quality Issue?}
+    B -->|Yes| C[SampleFlagged/NCE Red Flag]
+    C --> D{Program Type}
+    D -->|Pathology| E[PathologyQAEvent]
+    D -->|IHC| F[IHCQAEvent] 
+    D -->|Cytology| G[CytologyQAEvent]
+    D -->|General| H[StandardQAEvent]
     
-    C --> C1[StandardSampleCollection]
-    D --> D1[PathologyCaseCreation]
-    E --> E1[IHCSpecimenProcessing]
-    F --> F1[CytologySpecimenCollection]
+    E --> I[PathologyInvestigation]
+    F --> J[IHCInvestigation]
+    G --> K[CytologyInvestigation]  
+    H --> L[StandardInvestigation]
     
-    D1 --> D2[GrossExamination]
-    D2 --> D3[HistologicalProcessing]
-    D3 --> D4[MicroscopicExamination]
-    D4 --> D5[PathologyReportGeneration]
-    D5 --> D6[PathologyResultsValidation]
+    I --> M[QAEventClosed]
+    J --> M
+    K --> M
+    L --> M
     
-    E1 --> E2[IHCStaining]
-    E2 --> E3[AntibodyIncubation]
-    E3 --> E4[IHCMicroscopy]
-    E4 --> E5[IHCInterpretation]
-    E5 --> E6[IHCReporting]
-    
-    F1 --> F2[CytologySlidePreparation]
-    F2 --> F3[CytologyScreening]
-    F3 --> F4[CytologyClassification]
-    F4 --> F5[QualityAssurance]
-    F5 --> F6[CytologyReporting]
-    
-    C1 --> STANDARD[StandardWorkflow]
-    D6 --> FINALIZE[FinalResultsIntegration]
-    E6 --> FINALIZE
-    F6 --> FINALIZE
-    STANDARD --> FINALIZE
-    FINALIZE --> END[WorkflowComplete]
+    M --> N[SampleNCEResolved]
+    N --> O[Resume Program Workflow]
 ```
 
-### 2. Enhanced Laboratory Testing Workflow with Error Handling
+### Program-Specific Error Handling
+
+```mermaid
+flowchart TD
+    A[Analysis Error] --> B{Program Type}
+    B -->|Pathology| C[Tissue Processing Issue]
+    B -->|IHC| D[Staining Failure]
+    B -->|Cytology| E[Slide Quality Issue]
+    B -->|General| F[Standard QC Failure]
+    
+    C --> C1[PathologyAnalysisRejected]
+    D --> D1[IHCAnalysisRejected] 
+    E --> E1[CytologyAnalysisRejected]
+    F --> F1[AnalysisRejected]
+    
+    C1 --> G[QAEventCreated]
+    D1 --> G
+    E1 --> G
+    F1 --> G
+    
+    G --> H[Program-Specific Investigation]
+    H --> I[CAPA Implementation]
+    I --> J[Repeat Analysis]
+```
+
+### 5. Enhanced Laboratory Testing Workflow with Error Handling
 
 ```mermaid
 flowchart TD

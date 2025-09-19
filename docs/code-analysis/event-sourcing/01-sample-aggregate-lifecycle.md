@@ -26,8 +26,10 @@ The Sample Aggregate is the core laboratory specimen management entity in OpenEL
 ```mermaid
 stateDiagram-v2
     [*] --> REGISTERED : Sample Registration
-    REGISTERED --> COLLECTED : Sample Collected
+    REGISTERED --> PROGRAM_ASSIGNED : Program Selection
+    PROGRAM_ASSIGNED --> COLLECTED : Sample Collected
     REGISTERED --> FLAGGED : NCE Red Flag
+    PROGRAM_ASSIGNED --> FLAGGED : NCE Red Flag
     COLLECTED --> IN_PROGRESS : Testing Started
     COLLECTED --> FLAGGED : Quality Issues Found
     IN_PROGRESS --> COMPLETED : All Analyses Finished
@@ -35,8 +37,10 @@ stateDiagram-v2
     IN_PROGRESS --> REJECTED : Quality Rejection
     IN_PROGRESS --> FLAGGED : NCE During Testing
     REGISTERED --> REJECTED : Pre-analysis Rejection
+    PROGRAM_ASSIGNED --> REJECTED : Pre-collection Rejection
     REGISTERED --> REJECTED_EXTERNAL : External Sample Rejected
     FLAGGED --> IN_PROGRESS : NCE Resolved
+    FLAGGED --> COLLECTED : NCE Resolved (Pre-testing)
     FLAGGED --> REJECTED : NCE Requires Rejection
     COMPLETED --> RELEASED : Results Released
     COMPLETED_CRITICAL --> RELEASED : Critical Acknowledged
@@ -47,6 +51,7 @@ stateDiagram-v2
     RECALLED --> [*]
     RELEASED --> [*]
     
+    note right of PROGRAM_ASSIGNED : General/Pathology/IHC/Cytology
     note right of FLAGGED : Non-Conforming Event Active
     note right of REJECTED : QA Event Created
     note right of IN_PROGRESS : Analysis Aggregates Created
@@ -62,27 +67,22 @@ stateDiagram-v2
 |-------|---------|------------------|----------------|------------|
 | **SampleRegistered** | Sample entry in system | null → REGISTERED | Unique accession number, valid patient ID, collection date validation | **SAM-001**: As a lab technician I want to register a new sample so that testing can begin |
 | **STATSampleAlert** | STAT priority sample registered | REGISTERED (STAT alert) | Priority = STAT, supervisor notification | **SAM-001**: STAT priority branch triggers immediate alerts |
-| **SampleCollected** | Physical collection completed | REGISTERED → COLLECTED | Collector assigned, collection timestamp, barcode generated | **SAM-002**: As a sample collector I want to mark sample as collected |
-| **SampleBarcodeGenerated** | Label printing triggered | Collection workflow | Unique barcode, tracking enabled | **SAM-002**: Barcode branch enables tracking |
-| **SampleFlagged** | NCE quality issue identified | Any → FLAGGED | Red flag visible in UI, blocks progression until resolved | **SAM-005**: As a quality officer I want to flag non-conforming samples |
-| **SampleNCEResolved** | Quality issue resolved | FLAGGED → Previous State | NCE closed, sample workflow resumes | **SAM-005**: NCE resolution branch allows workflow continuation |
-| **SampleTestingStarted** | First analysis created | COLLECTED → IN_PROGRESS | Sample must be collected, at least one analysis created | **SAM-003**: As a lab technician I want to start testing so that analyses can be performed |
+| **SampleAssignedToGeneral** | Sample assigned to general laboratory | REGISTERED → PROGRAM_ASSIGNED | Standard laboratory workflow, routine tests | **SAM-002**: As a lab technician I want to assign samples to general laboratory program |
+| **SampleAssignedToPathology** | Sample assigned to pathology program | REGISTERED → PROGRAM_ASSIGNED | Pathology workflow, tissue analysis | **SAM-002**: Pathology branch with specialized workflow templates |
+| **SampleAssignedToIHC** | Sample assigned to immunohistochemistry | REGISTERED → PROGRAM_ASSIGNED | IHC-specific tests, antibody staining | **SAM-002**: IHC branch with specialized test procedures |
+| **SampleAssignedToCytology** | Sample assigned to cytology program | REGISTERED → PROGRAM_ASSIGNED | Cytology classification, screening workflow | **SAM-002**: Cytology branch with classification systems |
+| **SampleCollected** | Physical collection completed | PROGRAM_ASSIGNED → COLLECTED | Collector assigned, collection timestamp, barcode generated | **SAM-003**: As a sample collector I want to mark sample as collected |
+| **SampleBarcodeGenerated** | Label printing triggered | Collection workflow | Unique barcode, tracking enabled | **SAM-003**: Barcode branch enables tracking |
+| **SampleFlagged** | NCE quality issue identified | Any → FLAGGED | Red flag visible in UI, blocks progression until resolved | **SAM-004**: As a quality officer I want to flag non-conforming samples |
+| **SampleNCEResolved** | Quality issue resolved | FLAGGED → Previous State | NCE closed, sample workflow resumes | **SAM-004**: NCE resolution branch allows workflow continuation |
+| **SampleTestingStarted** | First analysis created | COLLECTED → IN_PROGRESS | Sample must be collected, at least one analysis created | **SAM-005**: As a lab technician I want to start testing so that analyses can be performed |
 | **SampleCompleted** | All analyses finished (normal) | IN_PROGRESS → COMPLETED | All analyses completed, no critical results | **SAM-006**: As a lab supervisor I want to complete sample processing |
 | **SampleCompletedWithCriticals** | All analyses finished (critical) | IN_PROGRESS → COMPLETED_CRITICAL | Critical results present, provider notification required | **SAM-006**: Critical results branch requires special handling |
-| **SampleRejected** | Internal quality rejection | Any → REJECTED | Valid rejection reason, recollection flag set | **SAM-004**: As a sample receiver I want to reject unsuitable samples |
-| **ExternalSampleRejected** | External referral rejection | Any → REJECTED_EXTERNAL | External sample, referring lab notification | **SAM-004**: External sample branch with referral notification |
-| **SampleResultsReleased** | Electronic results release | COMPLETED → RELEASED | Electronic delivery, patient portal update | **SAM-007**: As a result validator I want to release sample results |
-| **SampleResultsPrinted** | Paper/fax results release | COMPLETED → RELEASED | Paper delivery, HIPAA compliance | **SAM-007**: Manual delivery branch with compliance tracking |
-| **SampleRecalled** | Results recall | RELEASED → RECALLED | Post-release error correction, provider notification | **SAM-008**: As a lab director I want to recall released results |
-
-### Specialized Program Events
-
-| Event | Description | Branching Condition | Program Impact |
-|-------|-------------|--------------------|--------------| 
-| **SampleAssignedToPathology** | Sample assigned to pathology program | Program = Pathology | Pathology workflow templates applied |
-| **SampleAssignedToIHC** | Sample assigned to immunohistochemistry | Program = Immunohistochemistry | IHC-specific tests enabled |
-| **SampleAssignedToCytology** | Sample assigned to cytology program | Program = Cytology | Cytology classification systems enabled |
-| **SampleAssignedToGeneral** | Sample assigned to general laboratory | Program = General | Standard laboratory workflow |
+| **SampleRejected** | Internal quality rejection | Any → REJECTED | Valid rejection reason, recollection flag set | **SAM-007**: As a sample receiver I want to reject unsuitable samples |
+| **ExternalSampleRejected** | External referral rejection | Any → REJECTED_EXTERNAL | External sample, referring lab notification | **SAM-007**: External sample branch with referral notification |
+| **SampleResultsReleased** | Electronic results release | COMPLETED → RELEASED | Electronic delivery, patient portal update | **SAM-008**: As a result validator I want to release sample results |
+| **SampleResultsPrinted** | Paper/fax results release | COMPLETED → RELEASED | Paper delivery, HIPAA compliance | **SAM-008**: Manual delivery branch with compliance tracking |
+| **SampleRecalled** | Results recall | RELEASED → RECALLED | Post-release error correction, provider notification | **SAM-009**: As a lab director I want to recall released results |
 
 ### Priority and Workflow Events
 

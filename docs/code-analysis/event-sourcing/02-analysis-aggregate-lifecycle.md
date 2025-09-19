@@ -27,7 +27,15 @@ The Analysis Aggregate manages the core laboratory testing workflow in OpenELIS-
 ```mermaid
 stateDiagram-v2
     [*] --> NotStarted : Analysis Created
-    NotStarted --> TechnicalAcceptance : Results Entered
+    NotStarted --> InProgress : Standard Testing
+    NotStarted --> InProgress : Pathology Gross Exam
+    NotStarted --> InProgress : IHC Staining
+    NotStarted --> InProgress : Cytology Screening
+    InProgress --> UnderReview : Pathology Microscopic Exam
+    InProgress --> TechnicalAcceptance : Results Entered
+    InProgress --> TechnicalAcceptance : IHC Results Evaluated
+    InProgress --> TechnicalAcceptance : Cytology Classification
+    UnderReview --> TechnicalAcceptance : Pathology Diagnosis
     TechnicalAcceptance --> Finalized : Biologist Approval
     TechnicalAcceptance --> BiologistRejected : Biologist Rejects
     NotStarted --> TechnicalRejected : Technician Rejects
@@ -35,12 +43,15 @@ stateDiagram-v2
     BiologistRejected --> TechnicalAcceptance : Correction
     BiologistRejected --> NotStarted : Re-testing
     NotStarted --> Canceled : Administrative Cancel
+    InProgress --> Canceled : Administrative Cancel
     TechnicalAcceptance --> Canceled : Administrative Cancel
     BiologistRejected --> Canceled : Administrative Cancel
     TechnicalRejected --> Canceled : Administrative Cancel
     Finalized --> [*]
     Canceled --> [*]
     
+    note right of InProgress : Program-specific workflows
+    note right of UnderReview : Pathology-specific state
     note right of TechnicalAcceptance : Results Validated
     note right of Finalized : Results Released
     note right of BiologistRejected : QA Event May Be Created
@@ -79,7 +90,10 @@ stateDiagram-v2
 
 | Event | Trigger | State Transition | Business Rules | User Story |
 |-------|---------|------------------|----------------|------------|
-| **AnalysisCreated** | Test ordered on sample | null → NotStarted | Valid sample item, active test configuration | **ANA-001**: As a lab technician I want to create analyses for ordered tests |
+| **AnalysisCreated** | Standard test ordered | null → NotStarted | Valid sample item, active test configuration | **ANA-001**: As a lab technician I want to create analyses for ordered tests |
+| **PathologyAnalysisCreated** | Pathology case analysis | null → NotStarted | Pathology sample, tissue analysis | **ANA-001**: Pathology branch with specialized workflow |
+| **IHCAnalysisCreated** | Immunohistochemistry analysis | null → NotStarted | IHC sample, antibody testing | **ANA-001**: IHC branch with specialized procedures |
+| **CytologyAnalysisCreated** | Cytology analysis created | null → NotStarted | Cytology sample, screening workflow | **ANA-001**: Cytology branch with classification requirements |
 | **ResultsEnteredByUnit** | Unit-based result entry | NotStarted → TechnicalAcceptance | Laboratory unit validation, batch processing | **ANA-002**: As a technician I want to enter results by laboratory unit |
 | **ResultsEnteredByPatient** | Patient-based result entry | NotStarted → TechnicalAcceptance | Patient-specific view, complete test profile | **ANA-002**: Patient-focused branch for comprehensive care |
 | **ResultsEnteredByOrder** | Order-based result entry | NotStarted → TechnicalAcceptance | Order-centric workflow, accession number lookup | **ANA-002**: Order-focused branch for workflow efficiency |
@@ -93,6 +107,18 @@ stateDiagram-v2
 | **TechnicalRejection** | Technician rejects | NotStarted → TechnicalRejected | Rejection reason required, QA event creation | **ANA-007**: As a technician I want to reject problematic analyses |
 | **BiologistRejection** | Biologist rejects | TechnicalAcceptance → BiologistRejected | Professional review, QA escalation | **ANA-008**: As a biologist I want to reject unacceptable results |
 | **AnalysisCanceled** | Administrative action | Any → Canceled | Administrative authorization, cancellation reason | **ANA-009**: As an administrator I want to cancel analyses when needed |
+
+### Specialized Program Workflow Events
+
+| Event | Trigger | State Transition | Business Rules | User Story |
+|-------|---------|------------------|----------------|------------|
+| **PathologyGrossExamination** | Gross examination performed | NotStarted → InProgress | Pathology analysis, tissue examination | **ANA-010**: As a pathologist I want to perform gross examination |
+| **PathologyMicroscopicExam** | Microscopic examination started | InProgress → UnderReview | Histological preparation complete | **ANA-011**: As a pathologist I want to perform microscopic examination |
+| **PathologyDiagnosisEntered** | Final pathology diagnosis | UnderReview → TechnicalAcceptance | Diagnostic interpretation complete | **ANA-012**: As a pathologist I want to enter final diagnosis |
+| **IHCStainingPerformed** | IHC staining completed | NotStarted → InProgress | Antibody staining protocol | **ANA-013**: As an IHC technician I want to perform immunostaining |
+| **IHCResultsEvaluated** | IHC interpretation done | InProgress → TechnicalAcceptance | Staining pattern evaluation | **ANA-014**: As a pathologist I want to interpret IHC results |
+| **CytologyScreeningPerformed** | Cytology screening done | NotStarted → InProgress | Slide examination complete | **ANA-015**: As a cytotechnologist I want to screen cytology slides |
+| **CytologyClassificationAssigned** | Classification determined | InProgress → TechnicalAcceptance | Classification system applied | **ANA-016**: As a cytopathologist I want to assign final classification |
 
 ### Result Management Events
 
